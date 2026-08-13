@@ -3,6 +3,7 @@ const FVB = {
   DEFAULT_SETTINGS: {
     blockAutoplay: true,
     blockPages: true,
+    hideVideos: true,
   },
 
   // Paths that are pure video rabbit holes on facebook.com.
@@ -10,8 +11,42 @@ const FVB = {
     return /^\/(reel|reels|watch)(\/|$)/.test(pathname);
   },
 
+  // Walks up from a <video> to the outermost ancestor that is still roughly
+  // player-sized (Facebook wraps the video in overlay/control layers of the
+  // same footprint), so hiding it removes the whole player but not the post.
+  findHideRoot(video) {
+    const vr = video.getBoundingClientRect();
+    if (!vr.width || !vr.height) return video;
+    let root = video;
+    let node = video.parentElement;
+    const body = video.ownerDocument.body;
+    while (node && node !== body) {
+      const r = node.getBoundingClientRect();
+      if (r.width - vr.width > 60 || r.height - vr.height > 120) break;
+      root = node;
+      node = node.parentElement;
+    }
+    return root;
+  },
+
+  // Small inline note that replaces a hidden video player. Deliberately has
+  // no "show" button — hiding is all-or-nothing via the popup toggle.
+  buildHiddenPlaceholder(doc) {
+    const wrap = doc.createElement("div");
+    wrap.className = "fvb-hidden-video";
+    wrap.style.cssText =
+      "display:flex;align-items:center;gap:10px;" +
+      "padding:10px 14px;margin:4px 0;border:1px dashed #3a4552;border-radius:8px;" +
+      "background:rgba(24,119,242,.06);color:#65676b;" +
+      "font:13px -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
+    wrap.textContent = "🎬 Video hidden by FB Video Block";
+    return wrap;
+  },
+
   // Builds the full-page interstitial shown on Reels/Watch pages.
-  buildOverlay(doc, { onBack, onBypass }) {
+  // Deliberately no per-video escape hatch — the popup toggles are the only
+  // way through.
+  buildOverlay(doc, { onBack }) {
     const overlay = doc.createElement("div");
     overlay.id = "fvb-overlay";
     overlay.setAttribute(
@@ -57,15 +92,15 @@ const FVB = {
       "padding:10px 20px;border-radius:8px;border:0;background:#1877f2;color:#fff;font-size:15px;font-weight:600;cursor:pointer";
     back.addEventListener("click", onBack);
 
-    const bypass = doc.createElement("button");
-    bypass.id = "fvb-bypass";
-    bypass.textContent = "Let me watch this one";
-    bypass.style.cssText =
-      "padding:10px 20px;border-radius:8px;border:1px solid #3a4552;background:transparent;color:#aeb8c2;font-size:15px;cursor:pointer";
-    bypass.addEventListener("click", onBypass);
+    buttonRow.append(back);
 
-    buttonRow.append(back, bypass);
-    overlay.append(emoji, title, subtitle, buttonRow);
+    const settingsNote = doc.createElement("div");
+    settingsNote.id = "fvb-settings-note";
+    settingsNote.textContent =
+      "To change this, use the FB Video Block icon in your toolbar.";
+    settingsNote.style.cssText = "font-size:12px;opacity:.5;margin-top:4px";
+
+    overlay.append(emoji, title, subtitle, buttonRow, settingsNote);
     return overlay;
   },
 };
