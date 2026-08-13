@@ -12,65 +12,92 @@
 
   // ---- Hide video players entirely (runs in every frame) ----
 
-  const hiddenVideos = new Map(); // video -> {root, placeholder, prevDisplay}
+  const hiddenRoots = new Map(); // root element -> {placeholder, prevDisplay}
 
   // Only used when the popup toggle is switched off on an open page.
-  const revealVideo = (video) => {
-    const entry = hiddenVideos.get(video);
+  const revealRoot = (root) => {
+    const entry = hiddenRoots.get(root);
     if (!entry) return;
     entry.placeholder.remove();
-    entry.root.style.removeProperty("display");
-    if (entry.prevDisplay) entry.root.style.display = entry.prevDisplay;
-    hiddenVideos.delete(video);
+    root.style.removeProperty("display");
+    if (entry.prevDisplay) root.style.display = entry.prevDisplay;
+    hiddenRoots.delete(root);
   };
 
-  const hideVideo = (video) => {
-    if (hiddenVideos.has(video)) return;
-    const root = FVB.findHideRoot(video);
+  const hideRoot = (root) => {
+    if (!root || hiddenRoots.has(root)) return;
+    // An already-hidden ancestor makes this a no-op (its placeholder would be
+    // invisible anyway).
+    for (const existing of hiddenRoots.keys())
+      if (existing !== root && existing.contains(root)) return;
     const placeholder = FVB.buildHiddenPlaceholder(document);
-    hiddenVideos.set(video, {
-      root,
-      placeholder,
-      prevDisplay: root.style.display,
-    });
+    hiddenRoots.set(root, { placeholder, prevDisplay: root.style.display });
     root.style.setProperty("display", "none", "important");
     (root.parentElement || document.body)?.insertBefore(placeholder, root);
   };
 
+  // A video's whole feed post disappears when possible; outside a feed
+  // (stories viewer, embedded players) fall back to the player-sized wrapper.
   const considerVideo = (video) => {
-    if (!settings.hideVideos || hiddenVideos.has(video)) return;
+    if (!settings.hideVideos) return;
+    const unit = FVB.findFeedUnit(video);
+    if (unit) {
+      hideRoot(unit);
+      return;
+    }
     const rect = video.getBoundingClientRect();
     if (rect.width && rect.height) {
-      hideVideo(video);
+      hideRoot(FVB.findHideRoot(video));
     } else {
       // Player not laid out yet — hide as soon as it gets a size.
       const ro = new ResizeObserver(() => {
         const r = video.getBoundingClientRect();
         if (!r.width || !r.height) return;
         ro.disconnect();
-        if (settings.hideVideos) hideVideo(video);
+        if (settings.hideVideos) hideRoot(FVB.findHideRoot(video));
       });
       ro.observe(video);
     }
   };
 
-  const scanForVideos = (node) => {
+  // Posts linking to video content (a Reels shelf, a /videos/ or /watch
+  // permalink) are hidden before Facebook even attaches a player — it shows
+  // a clickable thumbnail first. Links outside a feed unit (nav) are ignored.
+  const considerLink = (a) => {
+    if (!settings.hideVideos) return;
+    if (!FVB.isVideoLink(a.getAttribute("href"), location.href)) return;
+    hideRoot(FVB.findFeedUnit(a));
+  };
+
+  // Facebook marks player containers with aria-label="Video player" even
+  // before the <video> element exists.
+  const PLAYER_MARKER = '[aria-label="Video player" i]';
+
+  const considerMarker = (el) => {
+    if (!settings.hideVideos) return;
+    hideRoot(FVB.findFeedUnit(el) || FVB.findHideRoot(el));
+  };
+
+  const scanNode = (node) => {
     if (!(node instanceof Element)) return;
     if (node.tagName === "VIDEO") considerVideo(node);
     for (const v of node.querySelectorAll("video")) considerVideo(v);
+    if (node.tagName === "A") considerLink(node);
+    for (const a of node.querySelectorAll("a[href]")) considerLink(a);
+    if (node.matches(PLAYER_MARKER)) considerMarker(node);
+    for (const el of node.querySelectorAll(PLAYER_MARKER)) considerMarker(el);
   };
 
   new MutationObserver((mutations) => {
     if (!settings.hideVideos) return;
-    for (const m of mutations)
-      for (const n of m.addedNodes) scanForVideos(n);
+    for (const m of mutations) for (const n of m.addedNodes) scanNode(n);
   }).observe(document.documentElement, { childList: true, subtree: true });
 
   const applyHideSetting = () => {
     if (settings.hideVideos) {
-      scanForVideos(document.documentElement);
+      scanNode(document.documentElement);
     } else {
-      for (const video of [...hiddenVideos.keys()]) revealVideo(video);
+      for (const root of [...hiddenRoots.keys()]) revealRoot(root);
     }
   };
 

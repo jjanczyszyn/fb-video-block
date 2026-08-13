@@ -11,6 +11,43 @@ const FVB = {
     return /^\/(reel|reels|watch)(\/|$)/.test(pathname);
   },
 
+  // Does this link point at video content (a reel, a watch page, or a
+  // /videos/ permalink)? Used to hide whole feed posts before their player —
+  // or even a poster thumbnail — renders. Only same-site/facebook links count.
+  isVideoLink(href, base) {
+    if (!href) return false;
+    let url;
+    try {
+      url = new URL(href, base);
+    } catch {
+      return false;
+    }
+    const sameSite =
+      url.origin === new URL(base).origin ||
+      /(^|\.)facebook\.com$/.test(url.hostname);
+    if (!sameSite) return false;
+    return (
+      /^\/(reel|reels|watch)(\/|$)/.test(url.pathname) ||
+      /^\/share\/[vr]\//.test(url.pathname) ||
+      /\/videos?\//.test(url.pathname)
+    );
+  },
+
+  // Finds the whole feed post (or shelf) an element belongs to. Facebook's
+  // 2026 feed wraps each unit in [data-virtualized]; older/simpler layouts
+  // use children of [role="feed"]. Returns null outside a feed (e.g. nav
+  // links), so callers can fall back to player-level hiding.
+  findFeedUnit(el) {
+    const virtualized = el.closest("[data-virtualized]");
+    if (virtualized) return virtualized;
+    let node = el;
+    while (node && node.parentElement) {
+      if (node.parentElement.getAttribute?.("role") === "feed") return node;
+      node = node.parentElement;
+    }
+    return null;
+  },
+
   // Walks up from a <video> to the outermost ancestor that is still roughly
   // player-sized (Facebook wraps the video in overlay/control layers of the
   // same footprint), so hiding it removes the whole player but not the post.

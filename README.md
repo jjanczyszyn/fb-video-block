@@ -2,7 +2,7 @@
 
 A tiny Chrome extension that stops Facebook from sucking you into videos:
 
-- **Hide videos completely** — every video player on facebook.com (feed, ads, stories) is collapsed into a small "🎬 Video hidden" note before you even see it. Deliberately no per-video reveal button.
+- **Hide videos completely** — every video post on facebook.com (feed videos, ads, the Reels shelf, the Stories tray) is collapsed into a small "🎬 Video hidden" note before you even see it. Whole posts are hidden — including ones that only show a play-button thumbnail so far — by detecting Facebook's feed-unit wrappers, video permalinks, and player containers. Deliberately no per-video reveal button.
 - **Block autoplay** — any video that is visible (e.g. with hiding toggled off) stays paused until you *deliberately click it*. Facebook's player degrades gracefully (you just see its normal play button).
 - **Block Reels & Watch pages** — opening `/reel/…`, `/reels`, or `/watch` shows a full-screen "Videos are blocked here" screen with a **Take me back** button. No escape hatch.
 

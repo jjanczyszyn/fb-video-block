@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.0 — 2026-08-13
+
+- Hiding now removes **whole feed posts**, not just players — validated against a saved copy of the real 2026 Facebook feed:
+  - Posts are located via Facebook's `[data-virtualized]` unit wrappers (with a `role="feed"` fallback for older layouts).
+  - Posts linking to Reels/Watch/`/videos/`/`/share/v/` are hidden **before any player or thumbnail renders** — this catches the Reels shelf (which contains no `<video>` at all) and video posts that only show a play-button thumbnail.
+  - `aria-label="Video player"` containers are hidden even before their `<video>` attaches.
+  - The Stories tray is hidden too (it contains autoplaying video previews).
+- Navigation links (e.g. the sidebar "Reels" entry) are ignored — only feed content is hidden.
+
 ## 1.1.0 — 2026-08-13
 
 - **Hide videos completely** (new, on by default): every video player on facebook.com is collapsed into a small "🎬 Video hidden by FB Video Block" note before it renders — no reveal button.
