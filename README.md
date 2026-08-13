@@ -1,6 +1,6 @@
 # FB Video Block
 
-A tiny Chrome extension that stops Facebook from sucking you into videos:
+A tiny, free, open-source Chrome extension that stops Facebook from sucking you into videos:
 
 - **Hide videos completely** — every video post on facebook.com (feed videos, ads, the Reels shelf, the Stories tray) is collapsed into a small "🎬 Video hidden" note before you even see it. Whole posts are hidden — including ones that only show a play-button thumbnail so far — by detecting Facebook's feed-unit wrappers, video permalinks, and player containers. Deliberately no per-video reveal button.
 - **Block autoplay** — any video that is visible (e.g. with hiding toggled off) stays paused until you *deliberately click it*. Facebook's player degrades gracefully (you just see its normal play button).
@@ -10,17 +10,17 @@ All three protections are on by default; the toolbar popup's toggles are the onl
 
 > **Important:** after installing or updating, reload any Facebook tabs that were already open — Chrome doesn't inject extensions into pre-existing tabs.
 
-## Install (and share with friends)
+## Install
 
-No web store needed:
+No web store needed — it takes about a minute:
 
-1. Download `fb-video-block.zip` (from this repo's [Releases](../../releases), or run `npm run package`) and unzip it — or just grab the `extension/` folder.
+1. Download `fb-video-block.zip` from the [latest release](../../releases/latest) and unzip it.
 2. Open `chrome://extensions` in Chrome.
 3. Turn on **Developer mode** (top-right toggle).
 4. Click **Load unpacked** and pick the unzipped folder.
 5. Reload any open Facebook tabs. Done.
 
-To share it, send someone the zip plus steps 2–5. Works in Chrome, Edge, Brave, and Arc.
+Works in Chrome, Edge, Brave, Arc, and other Chromium browsers. To update to a new version, remove the old one first, then repeat these steps.
 
 ## How it works
 
@@ -64,4 +64,10 @@ npm run test:e2e   # Playwright: loads the real extension into Chromium
 npm run package    # build dist/fb-video-block.zip for sharing
 ```
 
-The e2e suite loads the actual unpacked extension into Chromium against local fixture pages that imitate Facebook's player (a live video stream plus aggressive `play()` retries every 200 ms), and asserts that autoplay stays blocked, a real click unblocks, and reel URLs get the interstitial. Both suites run in GitHub Actions on every PR and must pass before merge.
+The e2e suite loads the actual unpacked extension into Chromium against local fixture pages that imitate Facebook's player (a live video stream plus aggressive `play()` retries every 200 ms) and its feed DOM (`data-virtualized` unit wrappers), and asserts that video posts are hidden, autoplay stays blocked, and reel URLs get the interstitial. Both suites run in GitHub Actions on every PR and must pass before merge.
+
+Facebook changes its DOM regularly; if something starts slipping through, please open an issue (a screenshot plus a "save page as… webpage, complete" snapshot of the offending page is the fastest way to get it fixed).
+
+## License
+
+[MIT](LICENSE)

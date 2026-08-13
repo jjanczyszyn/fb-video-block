@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.1 — 2026-08-13
+
+- Repository made public: added MIT license, public-facing README (install from the latest release, issue-reporting guidance). No extension code changes.
+
 ## 1.2.0 — 2026-08-13
 
 - Hiding now removes **whole feed posts**, not just players — validated against a saved copy of the real 2026 Facebook feed:
