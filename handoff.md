@@ -1,12 +1,11 @@
-# Handoff — 2026-08-13 ~19:20
+# Handoff — 2026-08-13 ~19:45
 
-**What this is:** FB Video Block — a Chrome (MV3) extension that blocks Facebook video autoplay (click-to-play) and puts an interstitial over Reels/Watch pages. See `README.md` for architecture; all logic is in `extension/`.
+**What this is:** FB Video Block — a Chrome (MV3) extension that hides all facebook.com videos (small "Video hidden" note, no reveal button), blocks autoplay for any visible video (click-to-play), and covers Reels/Watch pages with a no-exceptions "Take me back" screen. See `README.md`; all logic in `extension/`.
 
-**State:** v1.0.0 shipped. PR #1 merged to main with CI green (unit + Playwright e2e). Release `v1.0.0` on GitHub has the shareable `fb-video-block.zip` attached. No backend, no Convex, no cost-generating resources.
+**State:** v1.1.0 shipped (PR #2 merged, CI green, release with zip attached). v1.1.0 removed the "Let me watch this one" bypass at the user's request — a 3/day-limited version of it was built mid-session and then deliberately deleted; don't resurrect it unless asked. Popup toggles (all default on) are the only escape. No backend, no Convex, $0 cost.
 
-**Ops essentials:** `npm test` runs everything; `npm run package` rebuilds the zip; e2e loads the real extension into Chromium against localhost fixtures (real facebook.com is never hit in tests).
+**Ops essentials:** `npm test` (19 unit + 5 e2e); `npm run package` → `dist/fb-video-block.zip`. The manifest `key` pins the extension ID (`knhdeghllhieckbhkogfcbkhdgnjpmgm`); e2e derives it from the key and drives the popup page. Private key in session scratchpad only — not needed unless publishing to the Web Store.
 
-**Open threads / ideas (not started):**
-- User hasn't confirmed real-world behavior on facebook.com yet — if FB's player fights the blocker (stutter loops), tune `injected.js`.
-- Possible v1.1: hide the Reels shelf in the feed; option to also cover feed videos with a click-to-play overlay.
-- Chrome Web Store publishing if sharing by zip gets tedious ($5 one-time dev fee).
+**Time-sensitive:** user reported an ad video still playing under v1.0.0 — likely an un-reloaded tab and/or the sub-frame gap fixed in v1.1.0 (`match_origin_as_fallback`). Awaiting confirmation that v1.1.0 fully fixes it on real facebook.com; if not, debug `injected.js`/hide heuristics with the user's specific example.
+
+**Open threads / ideas:** hide the Reels shelf/links in the feed entirely; Chrome Web Store publishing if zip-sharing gets tedious ($5 one-time).
