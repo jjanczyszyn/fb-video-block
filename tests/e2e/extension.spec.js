@@ -77,9 +77,9 @@ test("feed videos are hidden and can never play", async () => {
   const page = await context.newPage();
   await page.goto(`${baseURL}/feed.html`);
 
-  await expect(page.locator(".fvb-hidden-video")).toBeVisible();
+  await expect(page.locator(".fvb-hidden-video").first()).toBeVisible();
   await expect(page.locator("#vid")).toBeHidden();
-  await expect(page.locator(".fvb-hidden-video")).toContainText(
+  await expect(page.locator(".fvb-hidden-video").first()).toContainText(
     "Video hidden by FB Video Block"
   );
   // No reveal button exists.
@@ -93,6 +93,27 @@ test("feed videos are hidden and can never play", async () => {
   }));
   expect(state.paused).toBe(true);
   expect(state.rejections).toBeGreaterThan(0);
+  await page.close();
+});
+
+test("video posts and the Reels shelf are hidden before any player exists", async () => {
+  const page = await context.newPage();
+  await page.goto(`${baseURL}/feed.html`);
+
+  // The Reels shelf (thumbnails + /reel/ links, no <video>) is gone.
+  await expect(page.locator("#unit-reels")).toBeHidden();
+  // A post that only shows a play-button thumbnail (video permalink) is gone.
+  await expect(page.locator("#unit-video-post")).toBeHidden();
+  // A post whose player container exists but has no <video> yet is gone.
+  await expect(page.locator("#unit-marker-post")).toBeHidden();
+  // Legacy role="feed" layouts work too.
+  await expect(page.locator("#unit-legacy-video")).toBeHidden();
+  // Ordinary posts survive in both layouts.
+  await expect(page.locator("#unit-text")).toBeVisible();
+  await expect(page.locator("#unit-legacy-text")).toBeVisible();
+
+  const placeholders = await page.locator(".fvb-hidden-video").count();
+  expect(placeholders).toBeGreaterThanOrEqual(5); // 4 units + the <video>
   await page.close();
 });
 
@@ -147,7 +168,7 @@ test("toggling hiding back on applies to already-open pages", async () => {
 
   await setHideVideos(true);
   await expect(page.locator("#vid")).toBeHidden();
-  await expect(page.locator(".fvb-hidden-video")).toBeVisible();
+  await expect(page.locator(".fvb-hidden-video").first()).toBeVisible();
   await page.close();
 });
 

@@ -16,6 +16,48 @@
   <body>
     <h1>Feed fixture</h1>
     <video id="vid" autoplay muted playsinline></video>
+
+    <!-- Facebook's 2026 feed wraps each post/shelf in [data-virtualized]
+         (each with its own wrapper div, as on the real site). Video posts
+         show a thumbnail + play button long before any <video> element
+         exists, and the Reels shelf is images + /reel/ links. -->
+    <div>
+      <div>
+        <div data-virtualized="false" id="unit-reels">
+          <h3>Reels</h3>
+          <a href="/reel/111">reel one</a>
+          <a href="/reel/222">reel two</a>
+        </div>
+      </div>
+      <div>
+        <div data-virtualized="false" id="unit-video-post">
+          <p>Watch my new video!</p>
+          <a href="/someuser/videos/98765/">thumbnail with play button</a>
+        </div>
+      </div>
+      <div>
+        <div data-virtualized="false" id="unit-marker-post">
+          <p>Player without a video element yet.</p>
+          <div aria-label="Video player" style="width: 200px; height: 100px"></div>
+        </div>
+      </div>
+      <div>
+        <div data-virtualized="false" id="unit-text">
+          <p>Just a text post about hiking.</p>
+          <a href="/groups/hiking">our hiking group</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Older/simpler layouts: posts as direct children of role="feed". -->
+    <div role="feed">
+      <div id="unit-legacy-video">
+        <a href="/watch/?v=123">a watch link</a>
+      </div>
+      <div id="unit-legacy-text">
+        <p>Legacy text post.</p>
+      </div>
+    </div>
     <script>
       // Simulate Facebook: feed the video a live canvas stream and
       // aggressively retry play(), like FB's player does.
