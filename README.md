@@ -2,10 +2,13 @@
 
 A tiny Chrome extension that stops Facebook from sucking you into videos:
 
-- **Block autoplay** — every video on facebook.com stays paused until you *deliberately click it*. Facebook's player degrades gracefully (you just see its normal play button).
-- **Block Reels & Watch pages** — opening `/reel/…`, `/reels`, or `/watch` shows a full-screen "Videos are blocked here" screen with a **Take me back** button, plus a **Let me watch this one** escape hatch (valid for that page, for that browser session only).
+- **Hide videos completely** — every video player on facebook.com (feed, ads, stories) is collapsed into a small "🎬 Video hidden" note before you even see it. Deliberately no per-video reveal button.
+- **Block autoplay** — any video that is visible (e.g. with hiding toggled off) stays paused until you *deliberately click it*. Facebook's player degrades gracefully (you just see its normal play button).
+- **Block Reels & Watch pages** — opening `/reel/…`, `/reels`, or `/watch` shows a full-screen "Videos are blocked here" screen with a **Take me back** button. No escape hatch.
 
-Both protections are on by default and can be toggled from the extension's toolbar popup. Settings sync across your Chrome profile.
+All three protections are on by default; the toolbar popup's toggles are the only way through. Settings sync across your Chrome profile.
+
+> **Important:** after installing or updating, reload any Facebook tabs that were already open — Chrome doesn't inject extensions into pre-existing tabs.
 
 ## Install (and share with friends)
 
@@ -36,10 +39,10 @@ flowchart TD
     CS -->|"&lt;html data-*&gt; flag"| INJ
 ```
 
-Two scripts cooperate on every Facebook page:
+Two scripts cooperate on every Facebook page (including `blob:`/`about:blank` player sub-frames):
 
 - `injected.js` runs in the page's own JavaScript world at document start. It wraps `HTMLMediaElement.prototype.play` to reject non-user-initiated plays with the same `NotAllowedError` the browser's autoplay policy uses, and pauses anything that starts via the native `autoplay` attribute. A click on a video (or its player controls) allowlists that one video.
-- `content.js` runs in the extension's isolated world. It mirrors your settings onto the page via a `data-` attribute, watches Facebook's soft SPA navigations, and injects the interstitial on Reels/Watch URLs.
+- `content.js` runs in the extension's isolated world. It watches the DOM for `<video>` elements and collapses each player (the outermost still-player-sized wrapper, so posts stay intact) into a small placeholder note; it also mirrors your settings onto the page via a `data-` attribute, watches Facebook's soft SPA navigations, and injects the interstitial on Reels/Watch URLs.
 
 **Privacy:** no network calls, no analytics, no data collection. The only permission is `storage` (for the two toggles), scoped to `facebook.com`.
 

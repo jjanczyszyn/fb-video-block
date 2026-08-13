@@ -1,6 +1,6 @@
-const DEFAULTS = { blockAutoplay: true, blockPages: true };
+const DEFAULTS = { blockAutoplay: true, blockPages: true, hideVideos: true };
 
-const checkboxes = ["blockAutoplay", "blockPages"].map((id) =>
+const checkboxes = Object.keys(DEFAULTS).map((id) =>
   document.getElementById(id)
 );
 

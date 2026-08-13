@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0 — 2026-08-13
+
+- **Hide videos completely** (new, on by default): every video player on facebook.com is collapsed into a small "🎬 Video hidden by FB Video Block" note before it renders — no reveal button.
+- **Removed the "Let me watch this one" escape hatch** from the Reels/Watch interstitial. The popup toggles are now the only way to see videos.
+- Content scripts now also reach players inside `blob:`/`about:blank` sub-frames (`match_origin_as_fallback`), fixing some ads that could still autoplay.
+- Popup: third toggle for hiding videos; updated copy.
+
 ## 1.0.0 — 2026-08-13
 
 - Initial release of the FB Video Block Chrome extension (Manifest V3).

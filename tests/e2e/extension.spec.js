@@ -1,4 +1,5 @@
 const { test, expect, chromium } = require("@playwright/test");
+const crypto = require("crypto");
 const http = require("http");
 const fs = require("fs");
 const os = require("os");
@@ -10,6 +11,7 @@ const FIXTURES = path.join(__dirname, "fixtures");
 let server;
 let baseURL;
 let context;
+let extensionId;
 let extensionDir;
 let userDataDir;
 
@@ -22,6 +24,17 @@ test.beforeAll(async () => {
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
   for (const cs of manifest.content_scripts) cs.matches.push("http://localhost/*");
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+
+  // The manifest "key" pins the extension ID; derive it the same way Chrome
+  // does (first 16 bytes of SHA-256 of the public key, mapped to a-p).
+  const keyDer = Buffer.from(manifest.key, "base64");
+  const hash = crypto.createHash("sha256").update(keyDer).digest();
+  extensionId = [...hash.subarray(0, 16)]
+    .map(
+      (b) =>
+        String.fromCharCode(97 + (b >> 4)) + String.fromCharCode(97 + (b & 15))
+    )
+    .join("");
 
   // Tiny static server: /reel/* and /watch* serve the reel fixture,
   // everything else serves the feed fixture.
@@ -53,15 +66,29 @@ test.afterAll(async () => {
   fs.rmSync(userDataDir, { recursive: true, force: true });
 });
 
-test("autoplay is blocked despite aggressive play() retries", async () => {
+const setHideVideos = async (enabled) => {
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  await popup.setChecked("#hideVideos", enabled);
+  await popup.close();
+};
+
+test("feed videos are hidden and can never play", async () => {
   const page = await context.newPage();
   await page.goto(`${baseURL}/feed.html`);
 
-  // Let the fixture hammer play() for a while.
+  await expect(page.locator(".fvb-hidden-video")).toBeVisible();
+  await expect(page.locator("#vid")).toBeHidden();
+  await expect(page.locator(".fvb-hidden-video")).toContainText(
+    "Video hidden by FB Video Block"
+  );
+  // No reveal button exists.
+  await expect(page.locator(".fvb-hidden-video button")).toHaveCount(0);
+
+  // Facebook-style play() retries keep failing even while hidden.
   await page.waitForFunction(() => window.__playAttempts > 5);
   const state = await page.evaluate(() => ({
     paused: document.getElementById("vid").paused,
-    attempts: window.__playAttempts,
     rejections: window.__playRejections,
   }));
   expect(state.paused).toBe(true);
@@ -69,42 +96,58 @@ test("autoplay is blocked despite aggressive play() retries", async () => {
   await page.close();
 });
 
-test("clicking the video allows it to play", async () => {
-  const page = await context.newPage();
-  await page.goto(`${baseURL}/feed.html`);
-  await page.waitForFunction(() => window.__playAttempts > 2);
-
-  await page.click("#vid");
-  await page.waitForFunction(
-    () => document.getElementById("vid").paused === false,
-    null,
-    { timeout: 5000 }
-  );
-  await page.close();
-});
-
-test("reel pages get the interstitial overlay", async () => {
+test("reel pages get the interstitial with no escape hatch", async () => {
   const page = await context.newPage();
   await page.goto(`${baseURL}/reel/12345`);
   await expect(page.locator("#fvb-overlay")).toBeVisible();
   await expect(page.locator("#fvb-overlay")).toContainText(
     "Videos are blocked here"
   );
+  await expect(page.locator("#fvb-back")).toBeVisible();
+  await expect(page.locator("#fvb-bypass")).toHaveCount(0);
+  await expect(page.locator("#fvb-settings-note")).toContainText("toolbar");
+
+  // Reloading doesn't help either.
+  await page.reload();
+  await expect(page.locator("#fvb-overlay")).toBeVisible();
+  await page.close();
 });
 
-test("'Let me watch this one' dismisses the overlay for that page", async () => {
+test("with hiding toggled off, videos are visible but click-to-play", async () => {
+  await setHideVideos(false);
   const page = await context.newPage();
-  await page.goto(`${baseURL}/reel/67890`);
-  await page.click("#fvb-bypass");
-  await expect(page.locator("#fvb-overlay")).toHaveCount(0);
+  await page.goto(`${baseURL}/feed.html`);
 
-  // Reloading the same URL keeps the bypass for the session.
-  await page.reload();
-  await expect(page.locator("#fvb-overlay")).toHaveCount(0);
+  await expect(page.locator("#vid")).toBeVisible();
+  await expect(page.locator(".fvb-hidden-video")).toHaveCount(0);
 
-  // A different reel is blocked again.
-  await page.goto(`${baseURL}/reel/other`);
-  await expect(page.locator("#fvb-overlay")).toBeVisible();
+  // Still blocked from autoplaying...
+  await page.waitForFunction(() => window.__playAttempts > 5);
+  expect(await page.evaluate(() => document.getElementById("vid").paused)).toBe(
+    true
+  );
+
+  // ...until the user deliberately clicks it.
+  await page.click("#vid");
+  await page.waitForFunction(
+    () => document.getElementById("vid").paused === false,
+    null,
+    { timeout: 5000 }
+  );
+
+  await page.close();
+  await setHideVideos(true);
+});
+
+test("toggling hiding back on applies to already-open pages", async () => {
+  const page = await context.newPage();
+  await setHideVideos(false);
+  await page.goto(`${baseURL}/feed.html`);
+  await expect(page.locator("#vid")).toBeVisible();
+
+  await setHideVideos(true);
+  await expect(page.locator("#vid")).toBeHidden();
+  await expect(page.locator(".fvb-hidden-video")).toBeVisible();
   await page.close();
 });
 
