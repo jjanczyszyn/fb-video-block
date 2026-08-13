@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Demo feed</title>
+    <style>
+      body {
+        margin: 0;
+        background: #eef0f3;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        color: #1c1e21;
+      }
+      .feed {
+        max-width: 680px;
+        margin: 28px auto;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .post {
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+        padding: 16px 18px;
+      }
+      .head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+      .avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+      }
+      .name {
+        font-weight: 600;
+        font-size: 15px;
+      }
+      .time {
+        font-size: 12.5px;
+        color: #65676b;
+      }
+      p {
+        margin: 0;
+        font-size: 15px;
+        line-height: 1.45;
+      }
+      .photo {
+        margin-top: 12px;
+        height: 180px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #a8c8a0, #6d9dc5);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="feed">
+      <div>
+        <div data-virtualized="false" class="post">
+          <div class="head">
+            <div class="avatar" style="background: #e8887c">M</div>
+            <div>
+              <div class="name">Marta</div>
+              <div class="time">2 hrs ago</div>
+            </div>
+          </div>
+          <p>
+            Sunday hike was exactly what I needed — 14 km and not a single
+            regret. Same time next week? 🥾
+          </p>
+          <div class="photo"></div>
+        </div>
+      </div>
+      <div>
+        <div data-virtualized="false" class="post">
+          <div class="head">
+            <div class="avatar" style="background: #7c6ee8">R</div>
+            <div>
+              <div class="name">Reels</div>
+              <div class="time">Suggested for you</div>
+            </div>
+          </div>
+          <a href="/reel/111">reel</a>
+          <a href="/reel/222">reel</a>
+        </div>
+      </div>
+      <div>
+        <div data-virtualized="false" class="post">
+          <div class="head">
+            <div class="avatar" style="background: #5b9bd5">T</div>
+            <div>
+              <div class="name">Tomek</div>
+              <div class="time">4 hrs ago</div>
+            </div>
+          </div>
+          <p>You HAVE to see this 😂</p>
+          <a href="/tomek/videos/98765/">video</a>
+        </div>
+      </div>
+      <div>
+        <div data-virtualized="false" class="post">
+          <div class="head">
+            <div class="avatar" style="background: #58a97a">B</div>
+            <div>
+              <div class="name">Book Club Warszawa</div>
+              <div class="time">6 hrs ago</div>
+            </div>
+          </div>
+          <p>
+            September pick is in: "Drive Your Plow Over the Bones of the
+            Dead". First meeting on the 9th — bring snacks and strong
+            opinions. 📚
+          </p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
