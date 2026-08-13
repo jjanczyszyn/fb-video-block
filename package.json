@@ -1,6 +1,6 @@
 {
   "name": "fb-video-block",
-  "version": "1.2.0",
+  "version": "1.2.2",
   "private": true,
   "description": "Chrome extension that stops Facebook videos and Reels from autoplaying.",
   "scripts": {
@@ -8,7 +8,9 @@
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
     "test": "npm run test:unit && npm run test:e2e",
-    "package": "mkdir -p dist && rm -f dist/fb-video-block.zip && cd extension && zip -qr ../dist/fb-video-block.zip . && echo 'dist/fb-video-block.zip ready'"
+    "package": "mkdir -p dist && rm -f dist/fb-video-block.zip && cd extension && zip -qr ../dist/fb-video-block.zip . && echo 'dist/fb-video-block.zip ready'",
+    "package:store": "node scripts/package-store.js",
+    "screenshots": "node scripts/store-screenshots.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.54.0",

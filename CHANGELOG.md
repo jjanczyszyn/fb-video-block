@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.2 — 2026-08-13
+
+- Chrome Web Store submission kit (no extension behavior changes): `npm run package:store` builds a store-compliant zip (manifest `key` stripped), `npm run screenshots` generates the 1280×800 listing screenshots, `store/listing.md` holds the full copy-paste listing text and permission justifications, and `PRIVACY.md` is the linkable privacy policy.
+
 ## 1.2.1 — 2026-08-13
 
 - Repository made public: added MIT license, public-facing README (install from the latest release, issue-reporting guidance). No extension code changes.
