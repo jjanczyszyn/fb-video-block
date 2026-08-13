@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body {
+        width: 280px;
+        margin: 0;
+        padding: 16px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        background: #101418;
+        color: #e7edf3;
+      }
+      h1 {
+        font-size: 15px;
+        margin: 0 0 4px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .tagline {
+        font-size: 12px;
+        opacity: 0.65;
+        margin-bottom: 14px;
+      }
+      label {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 10px 0;
+        border-top: 1px solid #232c36;
+        cursor: pointer;
+      }
+      input[type="checkbox"] {
+        margin-top: 2px;
+        accent-color: #1877f2;
+      }
+      .name {
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .desc {
+        font-size: 11.5px;
+        opacity: 0.65;
+        margin-top: 2px;
+      }
+      .note {
+        font-size: 11px;
+        opacity: 0.5;
+        margin-top: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>⏸️ FB Video Block</h1>
+    <div class="tagline">Facebook, minus the video quicksand.</div>
+
+    <label>
+      <input type="checkbox" id="blockAutoplay" />
+      <span>
+        <span class="name">Block autoplay</span>
+        <span class="desc" style="display: block"
+          >Videos stay paused until you deliberately click them.</span
+        >
+      </span>
+    </label>
+
+    <label>
+      <input type="checkbox" id="blockPages" />
+      <span>
+        <span class="name">Block Reels &amp; Watch pages</span>
+        <span class="desc" style="display: block"
+          >Shows a "take me back" screen, with a one-time escape hatch.</span
+        >
+      </span>
+    </label>
+
+    <div class="note">Changes apply to open Facebook tabs right away.</div>
+    <script src="popup.js"></script>
+  </body>
+</html>
