@@ -9,7 +9,7 @@ A tiny, free, open-source Chrome extension that stops Facebook from sucking you 
 - **Show videos from friends** — your friends' video posts, Stories and Reels stay visible (their Reels open when you click through; strangers' still get the block screen).
 - **Friends-only feed** — every News Feed post that isn't from a friend (pages, groups, suggestions, ads) is removed completely, with no placeholder.
 
-**Friends list:** click **Sync from Facebook** in the popup. It opens facebook.com/friends/list, and the extension saves friends (name + profile id/username) as you scroll the list. You can also type names or profile links in the popup, one per line. Everything stays in `chrome.storage.local` on your machine. Both friend options are on by default but stay dormant until a friends list exists, so a fresh install never empties your feed. Posts are matched on the author's profile link or name, Stories/Reels cards on their "Jane Doe's story" / "Reel by Jane Doe" labels (English UI).
+**Friends list:** click **Sync from Facebook** in the popup. It opens facebook.com/friends/list, scrolls the whole list by itself, saves your friends (name + profile id/username) and closes the tab. After that it **refreshes once a day** on its own (popup toggle "Refresh daily", on by default): the next time you use Facebook more than 24 hours after the last sync, it repeats this in a background tab. A complete refresh replaces the list, so unfriended people drop off; a refresh that comes back much shorter than before (page didn't fully load) only adds. You can also just open the friends list yourself and scroll it. You can also type names or profile links in the popup, one per line. Everything stays in `chrome.storage.local` on your machine. Both friend options are on by default but stay dormant until a friends list exists, so a fresh install never empties your feed. Posts are matched on the author's profile link or name, Stories/Reels cards on their "Jane Doe's story" / "Reel by Jane Doe" labels (English UI).
 
 **Marketplace is never affected:** no hiding, autoplay blocking, or friend filtering on `/marketplace`, and Marketplace boxes in the feed survive friends-only.
 
@@ -41,11 +41,16 @@ flowchart TD
         POPUP["Popup (toolbar)\non/off toggles + friends list"]
         STORE["chrome.storage.sync\nsettings"]
         LOCAL["chrome.storage.local\nfriends list, allowed friend videos"]
-        FRIENDS["facebook.com/friends/list\n(content.js harvests names/ids)"]
+        FRIENDS["facebook.com/friends/list tab\n(content.js auto-scrolls + harvests)"]
+        BG["background.js (service worker)\ndaily sync: opens + closes\nthe friends list tab"]
     end
+    CS -->|"daily check (any FB tab)"| BG
+    POPUP -->|Sync now| BG
+    BG -->|opens| FRIENDS
+    FRIENDS -->|friends found| BG
+    BG -->|saves| LOCAL
     POPUP -->|writes| STORE
     POPUP -->|manual friends / clear| LOCAL
-    FRIENDS -->|saves friends| LOCAL
     STORE -->|live updates| CS
     LOCAL -->|live updates| CS
     CS -->|"&lt;html data-*&gt; flag"| INJ

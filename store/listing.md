@@ -36,7 +36,7 @@ Note: Facebook changes its layout regularly. If a video slips through, report it
 Hides video content (video posts, Reels, Stories) on facebook.com and prevents videos there from autoplaying, so users are not drawn into unwanted video watching.
 
 **Permission justifications**
-- `storage`: Stores the user's on/off preference toggles (hide videos / block autoplay / block Reels and Watch pages / show friends' videos / friends-only feed) and, locally only, the user's friends list (names and profile ids, read from their own facebook.com/friends/list page or typed in) plus ids of friends' videos they clicked. Nothing is transmitted.
+- `storage`: Stores the user's on/off preference toggles (hide videos / block autoplay / block Reels and Watch pages / show friends' videos / friends-only feed) and, locally only, the user's friends list (names and profile ids, read from their own facebook.com/friends/list page, which the extension re-opens once a day in a background tab, or typed in) plus ids of friends' videos they clicked. Nothing is transmitted.
 - Host permission `https://*.facebook.com/*` (content scripts): The extension's sole purpose is to hide and pause video content on Facebook pages, which requires running a content script there. It runs on no other site.
 
 **Are you using remote code?** No.

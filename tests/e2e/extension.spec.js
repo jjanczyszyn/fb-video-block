@@ -16,26 +16,6 @@ let extensionDir;
 let userDataDir;
 
 test.beforeAll(async () => {
-  // The real manifest only matches facebook.com. For tests, copy the
-  // extension and widen the matches to localhost so the fixture pages get it.
-  extensionDir = fs.mkdtempSync(path.join(os.tmpdir(), "fvb-ext-"));
-  fs.cpSync(EXTENSION_SRC, extensionDir, { recursive: true });
-  const manifestPath = path.join(extensionDir, "manifest.json");
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
-  for (const cs of manifest.content_scripts) cs.matches.push("http://localhost/*");
-  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
-
-  // The manifest "key" pins the extension ID; derive it the same way Chrome
-  // does (first 16 bytes of SHA-256 of the public key, mapped to a-p).
-  const keyDer = Buffer.from(manifest.key, "base64");
-  const hash = crypto.createHash("sha256").update(keyDer).digest();
-  extensionId = [...hash.subarray(0, 16)]
-    .map(
-      (b) =>
-        String.fromCharCode(97 + (b >> 4)) + String.fromCharCode(97 + (b & 15))
-    )
-    .join("");
-
   // Tiny static server: /reel/* and /watch* serve the reel fixture, / the
   // friends home feed, /friends/list the friend list, everything else the
   // feed fixture.
@@ -55,8 +35,37 @@ test.beforeAll(async () => {
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   baseURL = `http://localhost:${server.address().port}`;
 
+  // The real manifest only matches facebook.com. For tests, copy the
+  // extension and widen the matches to localhost so the fixture pages get it.
+  extensionDir = fs.mkdtempSync(path.join(os.tmpdir(), "fvb-ext-"));
+  fs.cpSync(EXTENSION_SRC, extensionDir, { recursive: true });
+  const manifestPath = path.join(extensionDir, "manifest.json");
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  for (const cs of manifest.content_scripts) cs.matches.push("http://localhost/*");
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+  // Point the daily friend sync at the fixture server.
+  const libPath = path.join(extensionDir, "lib.js");
+  fs.writeFileSync(
+    libPath,
+    fs
+      .readFileSync(libPath, "utf8")
+      .replace("https://www.facebook.com/friends/list", `${baseURL}/friends/list`)
+  );
+
+  // The manifest "key" pins the extension ID; derive it the same way Chrome
+  // does (first 16 bytes of SHA-256 of the public key, mapped to a-p).
+  const keyDer = Buffer.from(manifest.key, "base64");
+  const hash = crypto.createHash("sha256").update(keyDer).digest();
+  extensionId = [...hash.subarray(0, 16)]
+    .map(
+      (b) =>
+        String.fromCharCode(97 + (b >> 4)) + String.fromCharCode(97 + (b & 15))
+    )
+    .join("");
+
   userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "fvb-profile-"));
   context = await chromium.launchPersistentContext(userDataDir, {
+    headless: !process.env.FVB_HEADED, // FVB_HEADED=1 to watch it run
     channel: "chromium",
     args: [
       `--disable-extensions-except=${extensionDir}`,
@@ -64,7 +73,16 @@ test.beforeAll(async () => {
       "--autoplay-policy=no-user-gesture-required",
     ],
   });
+  // The daily friend sync opens its own tab; only its own test wants that.
+  await setSyncFlags({ autoSyncFriends: false });
 });
+
+const setSyncFlags = async (values) => {
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  await popup.evaluate((v) => new Promise((r) => chrome.storage.sync.set(v, r)), values);
+  await popup.close();
+};
 
 test.afterAll(async () => {
   await context?.close();
@@ -207,6 +225,7 @@ test.describe.serial("friends", () => {
         new Promise((r) => chrome.storage.local.clear(r)),
       ])
     );
+    await setSync({ autoSyncFriends: false });
   });
 
   test("friend options are on by default but dormant until friends are synced", async () => {
@@ -229,7 +248,7 @@ test.describe.serial("friends", () => {
     const page = await context.newPage();
     await page.goto(`${baseURL}/friends/list`);
     await expect(page.locator("#fvb-friends-banner")).toContainText(
-      "2 friends saved"
+      "12 friends saved"
     );
     await page.close();
 
@@ -242,12 +261,15 @@ test.describe.serial("friends", () => {
         { name: "Jane Doe", username: "jane.doe" },
       ])
     );
-    expect(friends).toHaveLength(2); // banner's own profile + nav links skipped
+    // Banner's own profile + nav links skipped; a manual visit only captures
+    // what's been loaded (no auto-scroll).
+    expect(friends).toHaveLength(12);
+    expect(friends.map((f) => f.name)).not.toContain("Me Myself");
 
     // The popup reports the count.
     const popup = await context.newPage();
     await popup.goto(`chrome-extension://${extensionId}/popup.html`);
-    await expect(popup.locator("#friendCount")).toContainText("2 friends synced");
+    await expect(popup.locator("#friendCount")).toContainText("12 friends synced");
     await popup.close();
   });
 
@@ -324,4 +346,55 @@ test.describe.serial("friends", () => {
     await expect(page.locator("#unit-stories")).toBeHidden();
     await page.close();
   });
+});
+
+test("the friend list refreshes itself daily in a background tab", async () => {
+  await withPopup(
+    () =>
+      new Promise((r) =>
+        chrome.storage.local.set(
+          { friends: [{ name: "Old Friend", username: "old.friend" }], lastFriendSync: 0, lastFriendSyncAttempt: 0 },
+          r
+        )
+      )
+  );
+  await setSync({ autoSyncFriends: true });
+
+  const syncTabOpened = context.waitForEvent("page", {
+    predicate: (p) => p.url().includes("/friends/list"),
+  });
+  const page = await context.newPage();
+  await page.goto(`${baseURL}/`);
+  const syncTab = await syncTabOpened;
+  // It scrolls the whole (lazy-loading) list, saves it, and closes itself.
+  await syncTab.waitForEvent("close", { timeout: 60000 });
+
+  const local = await withPopup(
+    () => new Promise((r) => chrome.storage.local.get(null, r))
+  );
+  const names = local.friends.map((f) => f.name);
+  expect(names).toHaveLength(32); // John, Jane + 30 lazy-loaded
+  expect(names).toContain("Friend 30");
+  expect(names).not.toContain("Old Friend"); // unfriended people drop off
+  expect(Date.now() - local.lastFriendSync).toBeLessThan(120000);
+
+  // Already fresh: another Facebook visit doesn't open a new sync tab.
+  let reopened = false;
+  const onPage = (p) => {
+    if (p.url().includes("/friends/list")) reopened = true;
+  };
+  context.on("page", onPage);
+  await page.reload();
+  await page.waitForTimeout(2000);
+  context.off("page", onPage);
+  expect(reopened).toBe(false);
+
+  await page.close();
+  await withPopup(() =>
+    Promise.all([
+      new Promise((r) => chrome.storage.sync.clear(r)),
+      new Promise((r) => chrome.storage.local.clear(r)),
+    ])
+  );
+  await setSync({ autoSyncFriends: false });
 });

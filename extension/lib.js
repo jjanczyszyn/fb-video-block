@@ -6,6 +6,33 @@ const FVB = {
     hideVideos: true,
     allowFriends: true,
     friendsOnly: true,
+    autoSyncFriends: true,
+  },
+
+  FRIENDS_LIST_URL: "https://www.facebook.com/friends/list",
+  SYNC_INTERVAL_MS: 24 * 60 * 60 * 1000,
+  // After a failed/abandoned attempt (logged out, tab closed) wait this long.
+  SYNC_RETRY_MS: 60 * 60 * 1000,
+
+  // Is a daily friend-list refresh due?
+  shouldAutoSync(settings, state, now) {
+    if (!settings.autoSyncFriends) return false;
+    if (!settings.allowFriends && !settings.friendsOnly) return false;
+    return (
+      now - (state.lastFriendSync || 0) >= this.SYNC_INTERVAL_MS &&
+      now - (state.lastFriendSyncAttempt || 0) >= this.SYNC_RETRY_MS
+    );
+  },
+
+  // Result of a full scroll through the friend list. A complete-looking run
+  // replaces the stored list (so unfriended people drop off); a run that
+  // came back much smaller than before (page didn't fully load) only adds.
+  resolveSyncedFriends(previous, harvested) {
+    const prev = previous || [];
+    const fresh = this.mergeFriends([], harvested);
+    if (!fresh.length) return prev;
+    if (fresh.length >= prev.length * 0.9) return fresh;
+    return this.mergeFriends(prev, fresh);
   },
 
   // Marketplace is never touched: no hiding, no autoplay blocking, no

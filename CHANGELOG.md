@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.0 — 2026-09-29
+
+- **Friends list refreshes itself daily** (popup toggle "Refresh daily", on by default): when you use Facebook more than 24 hours after the last sync, a background service worker opens facebook.com/friends/list in a background tab, the extension scrolls the whole list, saves it and closes the tab. Retries at most hourly (e.g. when logged out).
+- "Sync from Facebook" now does the same in a visible tab: auto-scrolls to the end and closes itself.
+- A complete sync replaces the stored list, so unfriended people drop off; a much shorter result (partial load) only adds.
+- Popup shows when the list was last synced. No new permissions.
+
 ## 1.3.0 — 2026-09-29
 
 - **Show videos from friends** (new toggle, on by default): friends' video posts, Stories cards and Reels cards stay visible; a friend's reel/video/story opens past the Reels/Watch screen when you click through to it. Strangers' videos are still hidden.

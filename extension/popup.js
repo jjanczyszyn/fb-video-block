@@ -36,14 +36,26 @@ function renderFriends() {
       document.getElementById("allowFriends").checked ||
       document.getElementById("friendsOnly").checked;
     friendWarn.hidden = !(friendOptionOn && synced + manual === 0);
+    chrome.storage.local.get({ lastFriendSync: 0 }, ({ lastFriendSync }) => {
+      if (lastFriendSync)
+        lastSync.textContent = `Once a day, in a background tab that closes itself. Last synced ${ago(Date.now() - lastFriendSync)}.`;
+    });
     if (document.activeElement !== extraFriends)
       extraFriends.value = local.extraFriends;
   });
 }
 
 document.getElementById("syncFriends").addEventListener("click", () => {
-  chrome.tabs.create({ url: "https://www.facebook.com/friends/list" });
+  chrome.runtime.sendMessage({ type: "fvb-sync-now" });
 });
+
+const lastSync = document.getElementById("lastSync");
+const ago = (ms) => {
+  const h = Math.round(ms / 3600000);
+  if (h < 1) return "less than an hour ago";
+  if (h < 48) return `${h} hour${h === 1 ? "" : "s"} ago`;
+  return `${Math.round(h / 24)} days ago`;
+};
 
 document.getElementById("clearFriends").addEventListener("click", () => {
   chrome.storage.local.set({ friends: [], allowedVideos: [] }, renderFriends);
@@ -58,5 +70,6 @@ extraFriends.addEventListener("input", () => {
 });
 
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && changes.friends) renderFriends();
+  if (area === "local" && (changes.friends || changes.lastFriendSync))
+    renderFriends();
 });
