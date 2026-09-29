@@ -6,7 +6,14 @@ A tiny, free, open-source Chrome extension that stops Facebook from sucking you 
 - **Block autoplay** — any video that is visible (e.g. with hiding toggled off) stays paused until you *deliberately click it*. Facebook's player degrades gracefully (you just see its normal play button).
 - **Block Reels & Watch pages** — opening `/reel/…`, `/reels`, or `/watch` shows a full-screen "Videos are blocked here" screen with a **Take me back** button. No escape hatch.
 
-All three protections are on by default; the toolbar popup's toggles are the only way through. Settings sync across your Chrome profile.
+- **Show videos from friends** — your friends' video posts, Stories and Reels stay visible (their Reels open when you click through; strangers' still get the block screen).
+- **Friends-only feed** — every News Feed post that isn't from a friend (pages, groups, suggestions, ads) is removed completely, with no placeholder.
+
+**Friends list:** click **Sync from Facebook** in the popup. It opens facebook.com/friends/list, and the extension saves friends (name + profile id/username) as you scroll the list. You can also type names or profile links in the popup, one per line. Everything stays in `chrome.storage.local` on your machine. Both friend options are on by default but stay dormant until a friends list exists, so a fresh install never empties your feed. Posts are matched on the author's profile link or name, Stories/Reels cards on their "Jane Doe's story" / "Reel by Jane Doe" labels (English UI).
+
+**Marketplace is never affected:** no hiding, autoplay blocking, or friend filtering on `/marketplace`, and Marketplace boxes in the feed survive friends-only.
+
+All protections are on by default; the toolbar popup's toggles are the only way through. Settings sync across your Chrome profile.
 
 > **Important:** after installing or updating, reload any Facebook tabs that were already open — Chrome doesn't inject extensions into pre-existing tabs.
 
@@ -31,11 +38,16 @@ flowchart TD
             INJ["injected.js (page world)\nwraps video.play(), pauses native\nautoplay, allowlists clicked videos"]
             CS["content.js (extension world)\nsyncs settings to the page,\nshows Reels/Watch interstitial"]
         end
-        POPUP["Popup (toolbar)\ntwo on/off toggles"]
+        POPUP["Popup (toolbar)\non/off toggles + friends list"]
         STORE["chrome.storage.sync\nsettings"]
+        LOCAL["chrome.storage.local\nfriends list, allowed friend videos"]
+        FRIENDS["facebook.com/friends/list\n(content.js harvests names/ids)"]
     end
     POPUP -->|writes| STORE
+    POPUP -->|manual friends / clear| LOCAL
+    FRIENDS -->|saves friends| LOCAL
     STORE -->|live updates| CS
+    LOCAL -->|live updates| CS
     CS -->|"&lt;html data-*&gt; flag"| INJ
 ```
 
@@ -44,7 +56,7 @@ Two scripts cooperate on every Facebook page (including `blob:`/`about:blank` pl
 - `injected.js` runs in the page's own JavaScript world at document start. It wraps `HTMLMediaElement.prototype.play` to reject non-user-initiated plays with the same `NotAllowedError` the browser's autoplay policy uses, and pauses anything that starts via the native `autoplay` attribute. A click on a video (or its player controls) allowlists that one video.
 - `content.js` runs in the extension's isolated world. It watches the DOM for `<video>` elements and collapses each player (the outermost still-player-sized wrapper, so posts stay intact) into a small placeholder note; it also mirrors your settings onto the page via a `data-` attribute, watches Facebook's soft SPA navigations, and injects the interstitial on Reels/Watch URLs.
 
-**Privacy:** no network calls, no analytics, no data collection. The only permission is `storage` (for the two toggles), scoped to `facebook.com`.
+**Privacy:** no network calls, no analytics, no data collection. The only permission is `storage` (for the toggles and your friends list, which never leaves your browser), scoped to `facebook.com`.
 
 ## Services & infrastructure
 

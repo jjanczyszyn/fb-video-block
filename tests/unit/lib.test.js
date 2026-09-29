@@ -137,11 +137,187 @@ describe("findHideRoot", () => {
 });
 
 describe("defaults", () => {
-  it("blocks and hides everything out of the box", () => {
+  it("blocks and hides everything out of the box, friend options on", () => {
     expect(FVB.DEFAULT_SETTINGS).toEqual({
       blockAutoplay: true,
       blockPages: true,
       hideVideos: true,
+      allowFriends: true,
+      friendsOnly: true,
     });
+  });
+});
+
+describe("marketplace", () => {
+  const BASE = "https://www.facebook.com/";
+  it.each(["/marketplace", "/marketplace/", "/marketplace/item/123/"])(
+    "recognises %s",
+    (p) => {
+      expect(FVB.isMarketplacePath(p)).toBe(true);
+      expect(FVB.isMarketplaceLink(p, BASE)).toBe(true);
+    }
+  );
+  it.each(["/", "/marketplacefan", "/groups/marketplace"])("ignores %s", (p) => {
+    expect(FVB.isMarketplacePath(p)).toBe(false);
+  });
+  it("is never a blocked Reels/Watch path", () => {
+    expect(FVB.isBlockedPath("/marketplace/item/1")).toBe(false);
+  });
+});
+
+describe("profileRef", () => {
+  const BASE = "https://www.facebook.com/";
+
+  it.each([
+    ["https://www.facebook.com/jane.doe?__cft__[0]=AZ&__tn__=-R", { username: "jane.doe" }],
+    ["/Jane.Doe/", { username: "jane.doe" }],
+    ["/profile.php?id=100012345", { id: "100012345" }],
+    ["/friends/list/?profile_id=4242", { id: "4242" }],
+    ["/people/Jane-Doe/100099/", { id: "100099" }],
+  ])("reads %s", (href, ref) => {
+    expect(FVB.profileRef(href, BASE)).toEqual(ref);
+  });
+
+  it.each([
+    "/friends/requests",
+    "/groups/hiking",
+    "/watch",
+    "/marketplace/",
+    "/reel/123",
+    "/jane.doe/videos/1/",
+    "https://example.com/jane.doe",
+    "",
+  ])("ignores %s", (href) => {
+    expect(FVB.profileRef(href, BASE)).toBeNull();
+  });
+});
+
+describe("isFriend", () => {
+  const index = FVB.buildFriendIndex([
+    { name: "Jane Doe", username: "jane.doe" },
+    { name: "Zoë Ångström", id: "777" },
+    { name: "Only A Name" },
+  ]);
+  const BASE = "https://www.facebook.com/";
+
+  it("matches by username, id, or display name", () => {
+    expect(FVB.isFriend(index, { name: "X", href: "/jane.doe?__cft__=1" }, BASE)).toBe(true);
+    expect(FVB.isFriend(index, { name: "X", href: "/profile.php?id=777" }, BASE)).toBe(true);
+    expect(FVB.isFriend(index, { name: "  only  a NAME " }, BASE)).toBe(true);
+    expect(FVB.isFriend(index, { name: "Zoë Ångström" }, BASE)).toBe(true);
+  });
+
+  it("rejects strangers, pages, and missing authors", () => {
+    expect(FVB.isFriend(index, { name: "ZenDate", href: "/zendatecom" }, BASE)).toBe(false);
+    expect(FVB.isFriend(index, { name: "" }, BASE)).toBe(false);
+    expect(FVB.isFriend(index, null, BASE)).toBe(false);
+  });
+});
+
+describe("findUnitAuthor", () => {
+  it("reads the profile_name header (2026 feed markup)", () => {
+    document.body.innerHTML = `<div id="u"><a href="/someone-else">avatar</a>
+      <div data-ad-rendering-role="profile_name"><h4><span><a href="https://www.facebook.com/zendatecom?__cft__[0]=x"><b><span>ZenDate</span></b></a></span></h4>
+      <span>Verified account</span></div></div>`;
+    expect(FVB.findUnitAuthor(document.getElementById("u"))).toEqual({
+      name: "ZenDate",
+      href: "https://www.facebook.com/zendatecom?__cft__[0]=x",
+    });
+  });
+
+  it("falls back to a heading link, and null when there is none", () => {
+    document.body.innerHTML = '<div id="a"><h3><a href="/jane.doe">Jane Doe</a></h3></div><div id="b"><p>x</p></div>';
+    expect(FVB.findUnitAuthor(document.getElementById("a")).name).toBe("Jane Doe");
+    expect(FVB.findUnitAuthor(document.getElementById("b"))).toBeNull();
+  });
+});
+
+describe("story / reel cards", () => {
+  it.each([
+    ["Aster Peng's story", "Aster Peng"],
+    ["Aster Peng’s story", "Aster Peng"],
+    ["BBC Science Focus Magazine, view story", "BBC Science Focus Magazine"],
+    ["Reel by Sty Kdrama", "Sty Kdrama"],
+    ["Create story", null],
+  ])("reads the author of %s", (label, name) => {
+    const a = document.createElement("a");
+    a.setAttribute("aria-label", label);
+    expect(FVB.cardAuthorName(a)).toBe(name);
+  });
+
+  it("matches author cards but not the Create story card", () => {
+    document.body.innerHTML = `
+      <div role="gridcell" id="c1"><a aria-label="Aster Peng's story" href="/stories/1/x/">a</a></div>
+      <div data-type="hscroll-child" id="c2"><a aria-label="Reel by Sty Kdrama" href="/reel/5/">b</a></div>
+      <a aria-label="Create story" href="/stories/create/">c</a>`;
+    const cards = [...document.querySelectorAll(FVB.CARD_SELECTOR)];
+    expect(cards).toHaveLength(2);
+    expect(cards.map((c) => FVB.findCardRoot(c).id)).toEqual(["c1", "c2"]);
+  });
+});
+
+describe("videoKey", () => {
+  const BASE = "https://www.facebook.com/";
+  it.each([
+    ["/reel/1612645523793948/?s=ifu&__cft__[0]=x", "video:1612645523793948"],
+    ["/watch/?v=456", "video:456"],
+    ["/jane.doe/videos/98765/", "video:98765"],
+    ["/jane.doe/videos/some-title/98765/", "video:98765"],
+    ["/stories/3600198340021638/UzpfSVNDOjI4/?bucket_count=9", "story:3600198340021638"],
+    ["/share/v/abc123/", "share:abc123"],
+    ["/groups/hiking", null],
+    ["/reels", null],
+  ])("keys %s", (href, key) => {
+    expect(FVB.videoKey(href, BASE)).toBe(key);
+  });
+
+  it("gives a reel link and the reel page the same key", () => {
+    expect(FVB.videoKey("https://www.facebook.com/reel/42", BASE)).toBe(
+      FVB.videoKey("/reel/42/?s=ifu", BASE)
+    );
+  });
+});
+
+describe("parseFriendsText", () => {
+  it("reads names and profile links, one per line", () => {
+    expect(
+      FVB.parseFriendsText(
+        "Jane Doe\n\n  facebook.com/john.smith \nhttps://www.facebook.com/profile.php?id=123\nhttps://www.facebook.com/groups/x"
+      )
+    ).toEqual([{ name: "Jane Doe" }, { username: "john.smith" }, { id: "123" }]);
+  });
+});
+
+describe("friend list sync", () => {
+  it("only runs on /friends/list", () => {
+    expect(FVB.isFriendsListPage("https://www.facebook.com/friends/list")).toBe(true);
+    expect(FVB.isFriendsListPage("https://www.facebook.com/friends/list/?profile_id=1")).toBe(true);
+    expect(FVB.isFriendsListPage("https://www.facebook.com/friends/requests")).toBe(false);
+    expect(FVB.isFriendsListPage("https://www.facebook.com/")).toBe(false);
+  });
+
+  it("harvests names and profile refs, skipping nav links", () => {
+    document.body.innerHTML = `<div role="navigation">
+      <a href="/friends/requests">Friend requests</a>
+      <a href="/friends/list/?profile_id=111"><span>Jane Doe</span><span>12 mutual friends</span></a>
+      <a href="https://www.facebook.com/john.smith"><span>John Smith</span></a>
+      <a href="/profile.php?id=222"></a>
+    </div>`;
+    expect(FVB.harvestFriendLinks(document.body, "https://www.facebook.com/friends/list")).toEqual([
+      { name: "Jane Doe", id: "111" },
+      { name: "John Smith", username: "john.smith" },
+    ]);
+  });
+
+  it("merges without duplicates", () => {
+    const merged = FVB.mergeFriends(
+      [{ name: "Jane Doe", id: "111" }, { name: "Bob" }],
+      [{ name: "Jane D.", id: "111" }, { name: "bob" }, { name: "New", username: "new.one" }]
+    );
+    expect(merged).toEqual([
+      { name: "Jane D.", id: "111" },
+      { name: "bob" },
+      { name: "New", username: "new.one" },
+    ]);
   });
 });

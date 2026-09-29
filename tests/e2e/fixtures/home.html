@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Fake home feed (friends)</title>
+  </head>
+  <body>
+    <!-- Mirrors the real 2026 markup: posts tag the author with
+         data-ad-rendering-role="profile_name"; the Stories tray and Reels
+         shelf label each card with its author. -->
+    <div role="main">
+      <div>
+        <div data-virtualized="false" id="unit-stories">
+          <div role="region" aria-label="Stories">
+            <div role="grid" aria-label="stories tray">
+              <div role="row">
+                <div role="gridcell" id="card-create">
+                  <a aria-label="Create story" href="/stories/create/">+</a>
+                </div>
+                <div role="gridcell" id="card-friend-story">
+                  <a aria-label="Jane Doe's story" href="/stories/5001/abc/?source=story_tray">
+                    <div aria-label="Video player" style="width: 100px; height: 160px"></div>
+                  </a>
+                </div>
+                <div role="gridcell" id="card-stranger-story">
+                  <a aria-label="BBC Science Focus Magazine, view story" href="/stories/5002/def/">
+                    <div aria-label="Video player" style="width: 100px; height: 160px"></div>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div data-virtualized="false" id="unit-friend-video">
+          <div data-ad-rendering-role="profile_name">
+            <h4><a href="/jane.doe?__cft__[0]=x"><b><span>Jane Doe</span></b></a></h4>
+          </div>
+          <a id="friend-reel-link" href="/reel/42/?s=ifu">my reel</a>
+          <div aria-label="Video player" style="width: 200px; height: 100px"></div>
+        </div>
+      </div>
+      <div>
+        <div data-virtualized="false" id="unit-stranger-video">
+          <div data-ad-rendering-role="profile_name">
+            <h4><a href="/zendatecom?__cft__[0]=x"><b><span>ZenDate</span></b></a></h4>
+          </div>
+          <a id="stranger-reel-link" href="/reel/99/">their reel</a>
+        </div>
+      </div>
+      <div>
+        <div data-virtualized="false" id="unit-friend-text">
+          <div data-ad-rendering-role="profile_name">
+            <h4><a href="/profile.php?id=777"><span>John Smith</span></a></h4>
+          </div>
+          <p>Friend text post.</p>
+        </div>
+      </div>
+      <div>
+        <div data-virtualized="false" id="unit-stranger-text">
+          <div data-ad-rendering-role="profile_name">
+            <h4><a href="/oh.my.drama"><span>Oh My Drama</span></a></h4>
+          </div>
+          <p>Page text post.</p>
+        </div>
+      </div>
+      <div>
+        <div data-virtualized="false" id="unit-marketplace">
+          <h3>Marketplace</h3>
+          <a href="/marketplace/item/123/">Bike, $50</a>
+        </div>
+      </div>
+      <div>
+        <div data-virtualized="true" id="unit-spacer"></div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -21,7 +21,7 @@ WHAT IT DOES
 Deliberately, there is no "watch just this one" button. The only way to see videos again is the extension's toolbar popup, where three toggles (all on by default) control each protection.
 
 WHAT IT DOESN'T DO
-No account, no tracking, no analytics, no network requests. The only permission is storage, used for your three toggles. Runs only on facebook.com. Free and open source: https://github.com/jjanczyszyn/fb-video-block
+No account, no tracking, no analytics, no network requests. The only permission is storage, used for your toggles and (optionally) a friends list kept on your computer. Runs only on facebook.com. Free and open source: https://github.com/jjanczyszyn/fb-video-block
 
 Note: Facebook changes its layout regularly. If a video slips through, report it on GitHub and it will be fixed.
 
@@ -36,7 +36,7 @@ Note: Facebook changes its layout regularly. If a video slips through, report it
 Hides video content (video posts, Reels, Stories) on facebook.com and prevents videos there from autoplaying, so users are not drawn into unwanted video watching.
 
 **Permission justifications**
-- `storage`: Stores the user's three on/off preference toggles (hide videos / block autoplay / block Reels and Watch pages). No other data is stored.
+- `storage`: Stores the user's on/off preference toggles (hide videos / block autoplay / block Reels and Watch pages / show friends' videos / friends-only feed) and, locally only, the user's friends list (names and profile ids, read from their own facebook.com/friends/list page or typed in) plus ids of friends' videos they clicked. Nothing is transmitted.
 - Host permission `https://*.facebook.com/*` (content scripts): The extension's sole purpose is to hide and pause video content on Facebook pages, which requires running a content script there. It runs on no other site.
 
 **Are you using remote code?** No.

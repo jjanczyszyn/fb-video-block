@@ -36,12 +36,19 @@ test.beforeAll(async () => {
     )
     .join("");
 
-  // Tiny static server: /reel/* and /watch* serve the reel fixture,
-  // everything else serves the feed fixture.
+  // Tiny static server: /reel/* and /watch* serve the reel fixture, / the
+  // friends home feed, /friends/list the friend list, everything else the
+  // feed fixture.
   server = http.createServer((req, res) => {
     const file = /^\/(reel|reels|watch)(\/|$)/.test(req.url)
       ? "reel.html"
-      : "feed.html";
+      : /^\/friends\/list/.test(req.url)
+        ? "friends-list.html"
+        : /^\/marketplace/.test(req.url)
+          ? "marketplace.html"
+        : req.url === "/"
+          ? "home.html"
+          : "feed.html";
     res.setHeader("content-type", "text/html");
     res.end(fs.readFileSync(path.join(FIXTURES, file)));
   });
@@ -177,4 +184,144 @@ test("non-video pages are untouched", async () => {
   await page.goto(`${baseURL}/feed.html`);
   await expect(page.locator("#fvb-overlay")).toHaveCount(0);
   await page.close();
+});
+
+// ---- Friends ----
+
+const withPopup = async (fn, arg) => {
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  const result = await popup.evaluate(fn, arg);
+  await popup.close();
+  return result;
+};
+
+const setSync = (values) =>
+  withPopup((v) => new Promise((r) => chrome.storage.sync.set(v, r)), values);
+
+test.describe.serial("friends", () => {
+  test.afterAll(async () => {
+    await withPopup(() =>
+      Promise.all([
+        new Promise((r) => chrome.storage.sync.clear(r)),
+        new Promise((r) => chrome.storage.local.clear(r)),
+      ])
+    );
+  });
+
+  test("friend options are on by default but dormant until friends are synced", async () => {
+    const popup = await context.newPage();
+    await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+    await expect(popup.locator("#allowFriends")).toBeChecked();
+    await expect(popup.locator("#friendsOnly")).toBeChecked();
+    await expect(popup.locator("#friendWarn")).toBeVisible();
+    await popup.close();
+
+    // No friends known: the feed is unchanged (no friends-only filtering).
+    const page = await context.newPage();
+    await page.goto(`${baseURL}/`);
+    await expect(page.locator("#unit-stranger-text")).toBeVisible();
+    await expect(page.locator("#unit-stranger-video")).toBeHidden();
+    await page.close();
+  });
+
+  test("visiting the friend list syncs friends, including lazy-loaded ones", async () => {
+    const page = await context.newPage();
+    await page.goto(`${baseURL}/friends/list`);
+    await expect(page.locator("#fvb-friends-banner")).toContainText(
+      "2 friends saved"
+    );
+    await page.close();
+
+    const friends = await withPopup(
+      () => new Promise((r) => chrome.storage.local.get({ friends: [] }, (x) => r(x.friends)))
+    );
+    expect(friends).toEqual(
+      expect.arrayContaining([
+        { name: "John Smith", id: "4242" },
+        { name: "Jane Doe", username: "jane.doe" },
+      ])
+    );
+    expect(friends).toHaveLength(2); // banner's own profile + nav links skipped
+
+    // The popup reports the count.
+    const popup = await context.newPage();
+    await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+    await expect(popup.locator("#friendCount")).toContainText("2 friends synced");
+    await popup.close();
+  });
+
+  test("with friends' videos allowed, only friends' videos and stories show", async () => {
+    // John Smith is matched by the manual list (by id); Jane by the sync.
+    await withPopup(
+      () => new Promise((r) => chrome.storage.local.set({ friends: [{ name: "Jane Doe", username: "jane.doe" }], extraFriends: "facebook.com/profile.php?id=777" }, r))
+    );
+    await setSync({ allowFriends: true, friendsOnly: false });
+    const page = await context.newPage();
+    await page.goto(`${baseURL}/`);
+
+    await expect(page.locator("#unit-friend-video")).toBeVisible();
+    await expect(page.locator("#unit-stranger-video")).toBeHidden();
+    await expect(page.locator("#unit-stories")).toBeVisible();
+    await expect(page.locator("#card-friend-story")).toBeVisible();
+    await expect(page.locator("#card-stranger-story")).toBeHidden();
+    // Non-video posts are untouched when friends-only is off.
+    await expect(page.locator("#unit-stranger-text")).toBeVisible();
+    await expect(page.locator("#unit-friend-text")).toBeVisible();
+    await page.close();
+  });
+
+  test("a friend's reel opens; a stranger's reel still gets the block screen", async () => {
+    const page = await context.newPage();
+    await page.goto(`${baseURL}/`);
+    await page.click("#friend-reel-link");
+    await page.waitForURL(/\/reel\/42/);
+    await expect(page.locator("#fvb-overlay")).toHaveCount(0);
+
+    await page.goto(`${baseURL}/reel/99/`);
+    await expect(page.locator("#fvb-overlay")).toBeVisible();
+    await page.close();
+  });
+
+  test("friends-only feed removes every non-friend post without a trace", async () => {
+    await setSync({ allowFriends: true, friendsOnly: true });
+    const page = await context.newPage();
+    await page.goto(`${baseURL}/`);
+
+    await expect(page.locator("#unit-friend-text")).toBeVisible();
+    await expect(page.locator("#unit-friend-video")).toBeVisible();
+    await expect(page.locator("#unit-stranger-text")).toBeHidden();
+    await expect(page.locator("#unit-stranger-video")).toBeHidden();
+    await expect(page.locator("#card-stranger-story")).toBeHidden();
+    await expect(page.locator("#card-friend-story")).toBeVisible();
+    // Completely hidden: no "Video hidden" notes anywhere.
+    await expect(page.locator(".fvb-hidden-video")).toHaveCount(0);
+    // Marketplace suggestions are kept.
+    await expect(page.locator("#unit-marketplace")).toBeVisible();
+    await page.close();
+  });
+
+  test("Marketplace pages are never affected", async () => {
+    const page = await context.newPage();
+    await page.goto(`${baseURL}/marketplace/item/1/`);
+    await expect(page.locator("#listing")).toBeVisible();
+    await expect(page.locator("#listing-video")).toBeVisible();
+    await expect(page.locator(".fvb-hidden-video")).toHaveCount(0);
+    await expect(page.locator("#fvb-overlay")).toHaveCount(0);
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.dataset.fvbBlockAutoplay))
+      .toBe("false");
+    await page.close();
+  });
+
+  test("friends-only without friend videos hides friends' video posts but keeps their text posts", async () => {
+    await setSync({ allowFriends: false, friendsOnly: true });
+    const page = await context.newPage();
+    await page.goto(`${baseURL}/`);
+    await expect(page.locator("#unit-friend-text")).toBeVisible();
+    await expect(page.locator("#unit-friend-video")).toBeHidden();
+    await expect(page.locator("#unit-stranger-text")).toBeHidden();
+    await expect(page.locator("#unit-stories")).toBeHidden();
+    await page.close();
+  });
 });

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.0 — 2026-09-29
+
+- **Show videos from friends** (new toggle, on by default): friends' video posts, Stories cards and Reels cards stay visible; a friend's reel/video/story opens past the Reels/Watch screen when you click through to it. Strangers' videos are still hidden.
+- **Friends-only feed** (new toggle, on by default): News Feed posts not written by a friend are removed completely, with no placeholder. Stories/Reels are filtered card by card.
+- **Friends list:** "Sync from Facebook" in the popup opens facebook.com/friends/list and saves friends as you scroll; names or profile links can also be added by hand. Stored locally only. Friend options stay dormant until a list exists, so new installs see no change.
+- **Marketplace is never affected:** no hiding, autoplay blocking or friend filtering on `/marketplace`, and Marketplace boxes in the feed are kept.
+
 ## 1.2.2 — 2026-08-13
 
 - Chrome Web Store submission kit (no extension behavior changes): `npm run package:store` builds a store-compliant zip (manifest `key` stripped), `npm run screenshots` generates the 1280×800 listing screenshots, `store/listing.md` holds the full copy-paste listing text and permission justifications, and `PRIVACY.md` is the linkable privacy policy.

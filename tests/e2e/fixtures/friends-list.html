@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Fake friends list</title>
+  </head>
+  <body>
+    <div role="banner">
+      <div role="navigation"><a href="/me.myself"><span>Me Myself</span></a></div>
+    </div>
+    <div role="navigation" id="list">
+      <a href="/friends/requests">Friend requests</a>
+      <a href="/friends/list/?profile_id=4242"><span>John Smith</span><span>3 mutual friends</span></a>
+    </div>
+    <script>
+      // Facebook loads the list lazily as you scroll.
+      setTimeout(() => {
+        const a = document.createElement("a");
+        a.href = "https://www.facebook.com/jane.doe";
+        a.innerHTML = "<span>Jane Doe</span>";
+        document.getElementById("list").appendChild(a);
+      }, 300);
+    </script>
+  </body>
+</html>

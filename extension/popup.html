@@ -45,6 +45,49 @@
         opacity: 0.65;
         margin-top: 2px;
       }
+      .section {
+        border-top: 1px solid #232c36;
+        padding-top: 10px;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+      }
+      button {
+        flex: 1;
+        padding: 6px 8px;
+        border-radius: 6px;
+        border: 0;
+        background: #1877f2;
+        color: #fff;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button.secondary {
+        background: #232c36;
+        color: #e7edf3;
+      }
+      textarea {
+        box-sizing: border-box;
+        width: 100%;
+        min-height: 56px;
+        margin-top: 8px;
+        padding: 6px;
+        border-radius: 6px;
+        border: 1px solid #232c36;
+        background: #0b0e11;
+        color: #e7edf3;
+        font: 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        resize: vertical;
+      }
+      .warn {
+        font-size: 11.5px;
+        color: #f5b041;
+        margin-top: 6px;
+      }
       .note {
         font-size: 11px;
         opacity: 0.5;
@@ -88,7 +131,52 @@
       </span>
     </label>
 
-    <div class="note">Changes apply to open Facebook tabs right away.</div>
+    <label>
+      <input type="checkbox" id="allowFriends" />
+      <span>
+        <span class="name">Show videos from friends</span>
+        <span class="desc" style="display: block"
+          >Friends' posts, Stories and Reels stay visible, and their Reels open
+          when you click them.</span
+        >
+      </span>
+    </label>
+
+    <label>
+      <input type="checkbox" id="friendsOnly" />
+      <span>
+        <span class="name">Friends-only feed</span>
+        <span class="desc" style="display: block"
+          >Completely hides every post in your News Feed that isn't from a
+          friend: pages, groups, suggestions and ads.</span
+        >
+      </span>
+    </label>
+
+    <div class="section">
+      <span class="name">Your friends</span>
+      <span class="desc" style="display: block" id="friendCount"
+        >No friends synced yet.</span
+      >
+      <div class="warn" id="friendWarn" hidden>
+        The friend options switch on once your friends are synced. Until then
+        your feed is unchanged.
+      </div>
+      <div class="row">
+        <button id="syncFriends">Sync from Facebook</button>
+        <button id="clearFriends" class="secondary">Clear</button>
+      </div>
+      <textarea
+        id="extraFriends"
+        placeholder="Add friends by hand: one name or profile link per line"
+      ></textarea>
+    </div>
+
+    <div class="note">
+      Changes apply to open Facebook tabs right away. Marketplace is never
+      affected.
+    </div>
+    <script src="lib.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>
