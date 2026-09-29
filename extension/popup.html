@@ -166,6 +166,16 @@
         <button id="syncFriends">Sync from Facebook</button>
         <button id="clearFriends" class="secondary">Clear</button>
       </div>
+      <label style="border-top: 0; padding: 8px 0 0">
+        <input type="checkbox" id="autoSyncFriends" />
+        <span>
+          <span class="name">Refresh daily</span>
+          <span class="desc" style="display: block" id="lastSync"
+            >Re-syncs your friends list once a day in a background tab that
+            closes itself.</span
+          >
+        </span>
+      </label>
       <textarea
         id="extraFriends"
         placeholder="Add friends by hand: one name or profile link per line"

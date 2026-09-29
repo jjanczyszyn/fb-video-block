@@ -11,6 +11,7 @@
     <div role="navigation" id="list">
       <a href="/friends/requests">Friend requests</a>
       <a href="/friends/list/?profile_id=4242"><span>John Smith</span><span>3 mutual friends</span></a>
+      <div id="scroller" style="height: 150px; overflow: auto"></div>
     </div>
     <script>
       // Facebook loads the list lazily as you scroll.
@@ -20,6 +21,31 @@
         a.innerHTML = "<span>Jane Doe</span>";
         document.getElementById("list").appendChild(a);
       }, 300);
+
+      // ...and in batches as the list's own scroll container nears its end
+      // (10 visible at first, 30 in total).
+      const scroller = document.getElementById("scroller");
+      const sentinel = document.createElement("div");
+      sentinel.style.height = "1px";
+      scroller.appendChild(sentinel);
+      let n = 0;
+      const addBatch = () => {
+        for (let i = 0; i < 10; i++) {
+          n++;
+          const a = document.createElement("a");
+          a.href = `/friend${n}`;
+          a.style.cssText = "display:block;height:30px";
+          a.innerHTML = `<span>Friend ${n}</span>`;
+          scroller.insertBefore(a, sentinel);
+        }
+      };
+      addBatch();
+      new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting && n < 30) setTimeout(addBatch, 200);
+        },
+        { root: scroller }
+      ).observe(sentinel);
     </script>
   </body>
 </html>

@@ -144,6 +144,7 @@ describe("defaults", () => {
       hideVideos: true,
       allowFriends: true,
       friendsOnly: true,
+      autoSyncFriends: true,
     });
   });
 });
@@ -319,5 +320,45 @@ describe("friend list sync", () => {
       { name: "bob" },
       { name: "New", username: "new.one" },
     ]);
+  });
+});
+
+describe("daily friend sync", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const on = { autoSyncFriends: true, allowFriends: true, friendsOnly: true };
+  const now = 10 * DAY;
+
+  it("is due when never synced or more than a day ago", () => {
+    expect(FVB.shouldAutoSync(on, {}, now)).toBe(true);
+    expect(FVB.shouldAutoSync(on, { lastFriendSync: now - DAY - 1 }, now)).toBe(true);
+  });
+
+  it("waits a day after a sync and an hour after an attempt", () => {
+    expect(FVB.shouldAutoSync(on, { lastFriendSync: now - DAY + 60000 }, now)).toBe(false);
+    expect(FVB.shouldAutoSync(on, { lastFriendSyncAttempt: now - 60000 }, now)).toBe(false);
+    expect(FVB.shouldAutoSync(on, { lastFriendSyncAttempt: now - 2 * 3600000 }, now)).toBe(true);
+  });
+
+  it("is off when disabled or when no friend option is on", () => {
+    expect(FVB.shouldAutoSync({ ...on, autoSyncFriends: false }, {}, now)).toBe(false);
+    expect(FVB.shouldAutoSync({ ...on, allowFriends: false, friendsOnly: false }, {}, now)).toBe(false);
+  });
+
+  it("replaces the list after a complete run, so unfriended people drop off", () => {
+    const prev = [{ name: "A", id: "1" }, { name: "Gone", id: "2" }];
+    const got = [{ name: "A", id: "1" }, { name: "New", id: "3" }];
+    expect(FVB.resolveSyncedFriends(prev, got)).toEqual(got);
+  });
+
+  it("only adds when a run came back much smaller (partial load)", () => {
+    const prev = Array.from({ length: 10 }, (_, i) => ({ name: `F${i}`, id: String(i) }));
+    const got = [{ name: "New", id: "99" }];
+    const out = FVB.resolveSyncedFriends(prev, got);
+    expect(out).toHaveLength(11);
+  });
+
+  it("keeps the old list when nothing came back (logged out)", () => {
+    const prev = [{ name: "A", id: "1" }];
+    expect(FVB.resolveSyncedFriends(prev, [])).toBe(prev);
   });
 });

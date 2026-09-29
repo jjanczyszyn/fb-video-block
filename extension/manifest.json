@@ -1,10 +1,13 @@
 {
   "manifest_version": 3,
   "name": "FB Video Block",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Hides Facebook videos and blocks them from autoplaying, and puts a 'take me back' screen over Reels and Watch.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsAyborQIKf+40wgkAbtsqjslGy2D70D5lwMgz2rN8M6GqVqtrl70aWU6dPIiD0w71KLzcCk80FiuhnE+Zf8pnVE65HIaX+SNFLZg91kwpWNhSW2Mb4v843E7dnebomKYQZVf/ti+mZS8lDaNxShGZjJBttI5i6WQOek+4SAgAooDmHkQqfGbSdvlqNKG3WnCZxck8QNqPH8a0ehxbAaXq4qw1Cmhmze/lWztRQD/kHhJbE/neKvemeX3HV/Fap5eNU7Nj4cEY0NAG39Tpn6tvynwfDKfLCa8nje5LmT14xBCxL3R6RTym7NnHb768L5yJkPVQsiyk/xgfhVHPJtEpwIDAQAB",
   "permissions": ["storage"],
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
       "matches": ["https://*.facebook.com/*"],

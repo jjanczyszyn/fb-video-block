@@ -315,7 +315,7 @@
   let harvestObserver = null;
   let harvestBanner = null;
 
-  const showHarvestBanner = (count) => {
+  const showHarvestBanner = (text) => {
     if (!harvestBanner) {
       harvestBanner = document.createElement("div");
       harvestBanner.id = "fvb-friends-banner";
@@ -326,45 +326,130 @@
         "font:13px -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
       (document.body || document.documentElement).appendChild(harvestBanner);
     }
-    harvestBanner.textContent =
-      `FB Video Block: ${count} friends saved. ` +
-      "Scroll your friend list to the end to capture everyone.";
+    harvestBanner.textContent = text;
   };
 
+  // The friend list lives in the side navigation (not the top banner).
+  const friendListNavs = () =>
+    [...document.querySelectorAll('[role="navigation"]')].filter(
+      (nav) => !nav.closest('[role="banner"]')
+    );
+
+  const harvestVisible = () =>
+    FVB.mergeFriends(
+      [],
+      friendListNavs().flatMap((nav) =>
+        FVB.harvestFriendLinks(nav, location.href)
+      )
+    );
+
+  // Manual visit: merge whatever is on screen as the user scrolls.
   const harvest = () => {
-    const found = [];
-    for (const nav of document.querySelectorAll('[role="navigation"]')) {
-      if (nav.closest('[role="banner"]')) continue;
-      found.push(...FVB.harvestFriendLinks(nav, location.href));
-    }
-    const merged = FVB.mergeFriends(friends, found);
+    const merged = FVB.mergeFriends(friends, harvestVisible());
     if (merged.length !== friends.length) {
       friends = merged;
       chrome.storage.local.set({ friends });
     }
-    showHarvestBanner(friends.length);
+    showHarvestBanner(
+      `FB Video Block: ${friends.length} friends saved. ` +
+        "Scroll your friend list to the end to capture everyone."
+    );
+  };
+
+  // Sync tab (opened by background.js, daily or from the popup): scroll the
+  // list to the end by itself, then hand the full list back and let the
+  // background close the tab.
+  const SYNC_TICK_MS = 1000;
+  const SYNC_STABLE_TICKS = 6; // no new friends for this long = end of list
+  const SYNC_MAX_MS = 3 * 60 * 1000;
+
+  const scrollFriendListOnce = () => {
+    // Facebook lazy-loads more friends as the list's scroll container nears
+    // its end. Which element scrolls isn't stable, so scroll every
+    // scrollable element in (or around) the friend list pane.
+    const isScrollable = (el) => el.scrollHeight > el.clientHeight + 10;
+    for (const nav of friendListNavs()) {
+      const targets = [...nav.querySelectorAll("*")].filter(isScrollable);
+      for (let el = nav; el; el = el.parentElement)
+        if (isScrollable(el)) targets.push(el);
+      for (const el of targets) {
+        el.scrollTop = el.scrollHeight;
+        el.dispatchEvent(new Event("scroll"));
+      }
+    }
+    window.scrollTo(0, document.documentElement.scrollHeight);
+  };
+
+  const runSyncTab = () => {
+    const started = Date.now();
+    let found = [];
+    let stable = 0;
+    const tick = () => {
+      const now = harvestVisible();
+      const all = FVB.mergeFriends(found, now);
+      stable = all.length > found.length ? 0 : stable + 1;
+      found = all;
+      showHarvestBanner(
+        `FB Video Block: syncing your friends list… ${found.length} found. ` +
+          "This tab closes by itself."
+      );
+      const done =
+        (found.length && stable >= SYNC_STABLE_TICKS) ||
+        Date.now() - started > SYNC_MAX_MS ||
+        (!found.length && Date.now() - started > 20000); // logged out?
+      if (done) {
+        chrome.runtime.sendMessage({ type: "fvb-sync-done", friends: found });
+        return;
+      }
+      scrollFriendListOnce();
+      setTimeout(tick, SYNC_TICK_MS);
+    };
+    tick();
   };
 
   let harvestTimer = null;
+  let harvesting = false;
   const updateHarvester = () => {
     const onList =
       window === window.top && FVB.isFriendsListPage(location.href);
-    if (onList && !harvestObserver) {
-      harvestObserver = new MutationObserver(() => {
-        clearTimeout(harvestTimer);
-        harvestTimer = setTimeout(harvest, 500);
+    if (onList && !harvesting) {
+      harvesting = true;
+      chrome.runtime.sendMessage({ type: "fvb-is-sync-tab" }, (isSyncTab) => {
+        void chrome.runtime.lastError;
+        if (isSyncTab) return runSyncTab();
+        harvestObserver = new MutationObserver(() => {
+          clearTimeout(harvestTimer);
+          harvestTimer = setTimeout(harvest, 500);
+        });
+        harvestObserver.observe(document.documentElement, {
+          childList: true,
+          subtree: true,
+        });
+        harvest();
       });
-      harvestObserver.observe(document.documentElement, {
-        childList: true,
-        subtree: true,
-      });
-      harvest();
-    } else if (!onList && harvestObserver) {
-      harvestObserver.disconnect();
+    } else if (!onList && harvesting) {
+      harvesting = false;
+      harvestObserver?.disconnect();
       harvestObserver = null;
       harvestBanner?.remove();
       harvestBanner = null;
     }
+  };
+
+  // Daily refresh: any visible Facebook tab asks the background to re-sync
+  // the friend list when it's more than a day old (it only runs while you're
+  // logged in and using Facebook).
+  const maybeAutoSync = () => {
+    if (window !== window.top || FVB.isFriendsListPage(location.href)) return;
+    const ask = () => {
+      if (document.visibilityState !== "visible") return;
+      document.removeEventListener("visibilitychange", ask);
+      chrome.runtime.sendMessage({ type: "fvb-maybe-sync" }, () => {
+        void chrome.runtime.lastError;
+      });
+    };
+    if (document.visibilityState === "visible") ask();
+    else document.addEventListener("visibilitychange", ask);
   };
 
   // ---- Settings ----
@@ -391,6 +476,7 @@
     chrome.storage.local.get(LOCAL_DEFAULTS, (local) => {
       applyLocal(local);
       consumePendingFriendClick(refreshAll);
+      maybeAutoSync();
       if (document.readyState === "loading")
         document.addEventListener("DOMContentLoaded", updateHarvester);
       else updateHarvester();
