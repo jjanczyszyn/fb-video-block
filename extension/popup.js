@@ -38,7 +38,7 @@ function renderFriends() {
     friendWarn.hidden = !(friendOptionOn && synced + manual === 0);
     chrome.storage.local.get({ lastFriendSync: 0 }, ({ lastFriendSync }) => {
       if (lastFriendSync)
-        lastSync.textContent = `Once a day, in a background tab that closes itself. Last synced ${ago(Date.now() - lastFriendSync)}.`;
+        lastSync.textContent = `New friends are added from your notifications and the requests you confirm. Full re-scan monthly; last one ${ago(Date.now() - lastFriendSync)}.`;
     });
     if (document.activeElement !== extraFriends)
       extraFriends.value = local.extraFriends;

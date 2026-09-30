@@ -323,17 +323,21 @@ describe("friend list sync", () => {
   });
 });
 
-describe("daily friend sync", () => {
-  const DAY = 24 * 60 * 60 * 1000;
+describe("monthly full friend re-scan", () => {
+  const DAY = FVB.SYNC_INTERVAL_MS; // one re-scan interval (30 days)
   const on = { autoSyncFriends: true, allowFriends: true, friendsOnly: true };
   const now = 10 * DAY;
 
-  it("is due when never synced or more than a day ago", () => {
+  it("runs every 30 days", () => {
+    expect(FVB.SYNC_INTERVAL_MS).toBe(30 * 24 * 60 * 60 * 1000);
+  });
+
+  it("is due when never synced or more than an interval ago", () => {
     expect(FVB.shouldAutoSync(on, {}, now)).toBe(true);
     expect(FVB.shouldAutoSync(on, { lastFriendSync: now - DAY - 1 }, now)).toBe(true);
   });
 
-  it("waits a day after a sync and an hour after an attempt", () => {
+  it("waits an interval after a sync and an hour after an attempt", () => {
     expect(FVB.shouldAutoSync(on, { lastFriendSync: now - DAY + 60000 }, now)).toBe(false);
     expect(FVB.shouldAutoSync(on, { lastFriendSyncAttempt: now - 60000 }, now)).toBe(false);
     expect(FVB.shouldAutoSync(on, { lastFriendSyncAttempt: now - 2 * 3600000 }, now)).toBe(true);
@@ -360,5 +364,92 @@ describe("daily friend sync", () => {
   it("keeps the old list when nothing came back (logged out)", () => {
     const prev = [{ name: "A", id: "1" }];
     expect(FVB.resolveSyncedFriends(prev, [])).toBe(prev);
+  });
+});
+
+describe("new friends from notifications", () => {
+  // Shape of Facebook's embedded notification data (2026), trimmed.
+  const notif = (text, entity) => ({
+    node: {
+      notif: {
+        body: {
+          ranges: entity
+            ? [{ entity: { __typename: "User", ...entity }, offset: 0, length: entity.len }]
+            : [],
+          text,
+        },
+      },
+    },
+  });
+  const data = {
+    require: [["ScheduledServerJS", "handle", null, [{ __bbox: { result: { data: { viewer: {
+      notifications_page: {
+        edges: [
+          notif("Sam Lee sent you a friend request.", { id: "1", url: "https://www.facebook.com/sam.lee", len: 7 }),
+          notif("An admin changed the name of the group.", null),
+          notif("Valerie Joyce Bentson accepted your friend request.", { id: "500520866", url: "https://www.facebook.com/valerie.bentson", len: 21 }),
+          notif("Daniel Moreh accepted your friend request.", { id: "1045734557", url: "https://www.facebook.com/dmoreh", len: 12 }),
+        ],
+      },
+    } } } } }]]],
+  };
+
+  it("extracts people who accepted your request, with id and username", () => {
+    expect(FVB.extractAcceptedFriends(data)).toEqual([
+      { name: "Valerie Joyce Bentson", id: "500520866", username: "valerie.bentson" },
+      { name: "Daniel Moreh", id: "1045734557", username: "dmoreh" },
+    ]);
+  });
+
+  it("falls back to the name in the text when there is no entity", () => {
+    expect(
+      FVB.extractAcceptedFriends({ text: "Jo Park accepted your friend request.", ranges: [] })
+    ).toEqual([{ name: "Jo Park" }]);
+  });
+
+  it("ignores requests that were only sent, and survives cycles", () => {
+    const loop = { text: "Sam Lee sent you a friend request.", ranges: [] };
+    loop.self = loop;
+    expect(FVB.extractAcceptedFriends(loop)).toEqual([]);
+  });
+});
+
+describe("findRequester (Confirm clicks)", () => {
+  const BASE = "https://www.facebook.com/";
+
+  it("finds the requester in the right-rail friend request box", () => {
+    // Trimmed from the real 2026 right rail.
+    document.body.innerHTML = `<div><div>
+      <a href="https://www.facebook.com/friends/requests/?profile_id=1009768031" aria-label="James Gunther LAc"><svg></svg></a>
+      <div><a href="https://www.facebook.com/friends/requests/?profile_id=1009768031"><span>James Gunther LAc</span></a><span>6d</span></div>
+      <div><a aria-label="Profile picture of Emily Switzer, who is a mutual friend" href="https://www.facebook.com/emily.switzer1"></a>
+        <a aria-label="Profile picture of Mark Tanaka, who is a mutual friend" href="https://www.facebook.com/mark.tanaka.9"></a>
+        <span>25 mutual friends</span></div>
+      <div><div aria-label="Confirm" role="button" id="confirm">Confirm</div><div aria-label="Delete" role="button">Delete</div></div>
+    </div></div>`;
+    expect(FVB.findRequester(document.getElementById("confirm"), BASE)).toEqual({
+      name: "James Gunther LAc",
+      id: "1009768031",
+    });
+  });
+
+  it("finds the requester in a notification", () => {
+    document.body.innerHTML = `<div><a href="/sam.lee"><span>Sam Lee</span></a>
+      <span>sent you a friend request.</span>
+      <div aria-label="Confirm" role="button" id="confirm">Confirm</div></div>`;
+    expect(FVB.findRequester(document.getElementById("confirm"), BASE)).toEqual({
+      name: "Sam Lee",
+      username: "sam.lee",
+    });
+  });
+
+  it("ignores Unfriend confirmations and unrelated Confirm dialogs", () => {
+    document.body.innerHTML = `<div><a href="/sam.lee">Sam Lee</a>
+      <p>Are you sure you want to unfriend Sam Lee?</p>
+      <div aria-label="Confirm" role="button" id="c1">Confirm</div></div>
+      <div><a href="/some.page">Some Page</a><p>Leave group?</p>
+      <div aria-label="Confirm" role="button" id="c2">Confirm</div></div>`;
+    expect(FVB.findRequester(document.getElementById("c1"), BASE)).toBeNull();
+    expect(FVB.findRequester(document.getElementById("c2"), BASE)).toBeNull();
   });
 });

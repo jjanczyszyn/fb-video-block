@@ -1,6 +1,8 @@
-// Service worker: keeps the friend list fresh. Once a day (triggered by any
+// Service worker: full friend-list re-scans. Once a month (triggered by any
 // visible Facebook tab) it opens facebook.com/friends/list in a background
-// tab; content.js scrolls it to the end and sends the list back here.
+// tab; content.js scrolls it to the end and sends the list back here. New
+// friends in between are picked up by content.js from notifications and
+// Confirm clicks.
 importScripts("lib.js");
 
 const SESSION_DEFAULTS = { syncTabId: null };

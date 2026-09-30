@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.5.0 — 2026-09-29
+
+- **New friends are picked up as they happen**, instead of by re-scanning the whole list daily:
+  - "*Name* accepted your friend request." entries are read from the notification data Facebook already embeds in every page (name, profile id, username).
+  - Clicking **Confirm** on a friend request (right-rail box, requests page, notifications) adds the requester; Unfriend and other confirm dialogs are ignored.
+  - Both validated against a saved copy of the real page.
+- The full friend-list re-scan (drops unfriended people, catches friends added on other devices) now runs **monthly** instead of daily.
+- Popup toggle renamed "Keep it up to date".
+
 ## 1.4.0 — 2026-09-29
 
 - **Friends list refreshes itself daily** (popup toggle "Refresh daily", on by default): when you use Facebook more than 24 hours after the last sync, a background service worker opens facebook.com/friends/list in a background tab, the extension scrolls the whole list, saves it and closes the tab. Retries at most hourly (e.g. when logged out).
