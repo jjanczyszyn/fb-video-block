@@ -9,7 +9,10 @@ A tiny, free, open-source Chrome extension that stops Facebook from sucking you 
 - **Show videos from friends** — your friends' video posts, Stories and Reels stay visible (their Reels open when you click through; strangers' still get the block screen).
 - **Friends-only feed** — every News Feed post that isn't from a friend (pages, groups, suggestions, ads) is removed completely, with no placeholder.
 
-**Friends list:** click **Sync from Facebook** in the popup. It opens facebook.com/friends/list, scrolls the whole list by itself, saves your friends (name + profile id/username) and closes the tab. After that it **refreshes once a day** on its own (popup toggle "Refresh daily", on by default): the next time you use Facebook more than 24 hours after the last sync, it repeats this in a background tab. A complete refresh replaces the list, so unfriended people drop off; a refresh that comes back much shorter than before (page didn't fully load) only adds. You can also just open the friends list yourself and scroll it. You can also type names or profile links in the popup, one per line. Everything stays in `chrome.storage.local` on your machine. Both friend options are on by default but stay dormant until a friends list exists, so a fresh install never empties your feed. Posts are matched on the author's profile link or name, Stories/Reels cards on their "Jane Doe's story" / "Reel by Jane Doe" labels (English UI).
+**Friends list:** click **Sync from Facebook** in the popup. It opens facebook.com/friends/list, scrolls the whole list by itself, saves your friends (name + profile id/username) and closes the tab. After that it **keeps itself up to date** (popup toggle "Keep it up to date", on by default):
+
+- **New friends are added as they happen.** Facebook embeds your recent notifications as JSON in every page; "*Name* accepted your friend request." entries are read (with profile id + username) on any Facebook page you open. Requests *you* accept send no notification, so clicking **Confirm** on a friend request (right-rail box, requests page, notifications) adds that person.
+- **A full re-scan runs monthly** in a background tab, to drop unfriended people and catch friends added elsewhere (e.g. on your phone). A complete re-scan replaces the list; one that comes back much shorter than before (page didn't fully load) only adds. You can also just open the friends list yourself and scroll it. You can also type names or profile links in the popup, one per line. Everything stays in `chrome.storage.local` on your machine. Both friend options are on by default but stay dormant until a friends list exists, so a fresh install never empties your feed. Posts are matched on the author's profile link or name, Stories/Reels cards on their "Jane Doe's story" / "Reel by Jane Doe" labels (English UI).
 
 **Marketplace is never affected:** no hiding, autoplay blocking, or friend filtering on `/marketplace`, and Marketplace boxes in the feed survive friends-only.
 
@@ -36,7 +39,7 @@ flowchart TD
     subgraph Chrome["Chrome (your browser — nothing leaves it)"]
         subgraph FB["facebook.com page"]
             INJ["injected.js (page world)\nwraps video.play(), pauses native\nautoplay, allowlists clicked videos"]
-            CS["content.js (extension world)\nsyncs settings to the page,\nshows Reels/Watch interstitial"]
+            CS["content.js (extension world)\nsyncs settings to the page,\nshows Reels/Watch interstitial,\nreads new friends from notification\ndata + Confirm clicks"]
         end
         POPUP["Popup (toolbar)\non/off toggles + friends list"]
         STORE["chrome.storage.sync\nsettings"]
@@ -44,7 +47,8 @@ flowchart TD
         FRIENDS["facebook.com/friends/list tab\n(content.js auto-scrolls + harvests)"]
         BG["background.js (service worker)\ndaily sync: opens + closes\nthe friends list tab"]
     end
-    CS -->|"daily check (any FB tab)"| BG
+    CS -->|"monthly re-scan check (any FB tab)"| BG
+    CS -->|new friends| LOCAL
     POPUP -->|Sync now| BG
     BG -->|opens| FRIENDS
     FRIENDS -->|friends found| BG

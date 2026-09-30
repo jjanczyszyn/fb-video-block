@@ -436,8 +436,57 @@
     }
   };
 
-  // Daily refresh: any visible Facebook tab asks the background to re-sync
-  // the friend list when it's more than a day old (it only runs while you're
+  // ---- New friends, picked up as they happen (top frame) ----
+
+  const addFriends = (entries) => {
+    if (!entries.length) return;
+    chrome.storage.local.get({ friends: [] }, (local) => {
+      const merged = FVB.mergeFriends(local.friends, entries);
+      if (merged.length !== local.friends.length)
+        chrome.storage.local.set({ friends: merged });
+    });
+  };
+
+  // "<Name> accepted your friend request." in the notification data that
+  // Facebook embeds in the page.
+  const scannedScripts = new WeakSet();
+  const scanNotificationData = () => {
+    if (!settings.autoSyncFriends || window !== window.top) return;
+    const found = [];
+    for (const script of document.querySelectorAll(
+      'script[type="application/json"]'
+    )) {
+      if (scannedScripts.has(script)) continue;
+      scannedScripts.add(script);
+      const text = script.textContent;
+      if (!text.includes("accepted your friend request")) continue;
+      try {
+        found.push(...FVB.extractAcceptedFriends(JSON.parse(text)));
+      } catch {
+        // not JSON we understand
+      }
+    }
+    addFriends(found);
+  };
+
+  // Accepting a request yourself sends you no notification, so catch the
+  // Confirm click.
+  document.addEventListener(
+    "click",
+    (e) => {
+      if (!settings.autoSyncFriends || !e.isTrusted) return;
+      const button =
+        e.target instanceof Element &&
+        e.target.closest('[aria-label="Confirm"], [aria-label="Confirm request"]');
+      if (!button) return;
+      const requester = FVB.findRequester(button, location.href);
+      if (requester) addFriends([requester]);
+    },
+    true
+  );
+
+  // Monthly full re-scan: any visible Facebook tab asks the background to
+  // re-scan the whole friend list when the last full scan is a month old (it only runs while you're
   // logged in and using Facebook).
   const maybeAutoSync = () => {
     if (window !== window.top || FVB.isFriendsListPage(location.href)) return;
@@ -477,6 +526,9 @@
       applyLocal(local);
       consumePendingFriendClick(refreshAll);
       maybeAutoSync();
+      scanNotificationData();
+      window.addEventListener("load", scanNotificationData);
+      setTimeout(scanNotificationData, 5000);
       if (document.readyState === "loading")
         document.addEventListener("DOMContentLoaded", updateHarvester);
       else updateHarvester();

@@ -10,8 +10,10 @@ FB Video Block does not collect, store, transmit, or sell any user data.
   storage (`chrome.storage.sync`) so they follow your own Chrome profile.
 - If you use the friend options, it stores your friends list (names and
   Facebook profile ids/usernames, collected only when you open your own
-  friends list page, which the extension also re-opens by itself once a day
-  in a background tab while you're using Facebook, or type them in) and the ids of friends' videos you
+  friends list page, which the extension also re-opens by itself once a
+  month in a background tab while you're using Facebook; new friends from
+  "accepted your friend request" notifications and friend requests you
+  confirm; or names you type in) and the ids of friends' videos you
   clicked, in `chrome.storage.local` on your computer only. You can erase it
   with the popup's **Clear** button.
 - None of this data is ever sent anywhere or visible to the extension's

@@ -10,7 +10,10 @@ const FVB = {
   },
 
   FRIENDS_LIST_URL: "https://www.facebook.com/friends/list",
-  SYNC_INTERVAL_MS: 24 * 60 * 60 * 1000,
+  // New friends are picked up continuously from notifications and accepted
+  // requests; the full friend-list re-scan (which also drops unfriended
+  // people) only needs to run monthly.
+  SYNC_INTERVAL_MS: 30 * 24 * 60 * 60 * 1000,
   // After a failed/abandoned attempt (logged out, tab closed) wait this long.
   SYNC_RETRY_MS: 60 * 60 * 1000,
 
@@ -22,6 +25,67 @@ const FVB = {
       now - (state.lastFriendSync || 0) >= this.SYNC_INTERVAL_MS &&
       now - (state.lastFriendSyncAttempt || 0) >= this.SYNC_RETRY_MS
     );
+  },
+
+  // Facebook embeds the recent notifications as JSON in every page
+  // (script[type="application/json"], ...notifications_page.edges[].node.
+  // notif.body). Pulls out "<Name> accepted your friend request." entries
+  // with the person's id and profile URL. English UI only.
+  ACCEPTED_RE: /^(.+?) accepted your friend request\.?$/,
+
+  extractAcceptedFriends(data) {
+    const out = [];
+    const seen = new Set();
+    const walk = (node, depth) => {
+      if (!node || typeof node !== "object" || depth > 60 || seen.has(node))
+        return;
+      seen.add(node);
+      if (typeof node.text === "string" && Array.isArray(node.ranges)) {
+        const m = node.text.match(this.ACCEPTED_RE);
+        if (m) {
+          const range = node.ranges.find(
+            (r) => r?.offset === 0 && r.entity?.__typename === "User"
+          );
+          const entity = range?.entity;
+          const friend = {
+            name: range ? node.text.slice(0, range.length) : m[1],
+          };
+          if (entity?.id && /^\d+$/.test(entity.id)) friend.id = entity.id;
+          const ref = entity?.url
+            ? this.profileRef(entity.url, "https://www.facebook.com/")
+            : null;
+          if (ref?.username) friend.username = ref.username;
+          out.push(friend);
+        }
+      }
+      for (const key in node) walk(node[key], depth + 1);
+    };
+    walk(data, 0);
+    return this.mergeFriends([], out);
+  },
+
+  // A "Confirm" click on a friend request (right-rail box, /friends/requests,
+  // notifications): finds the requester next to the button. Skips the
+  // "Profile picture of X, who is a mutual friend" links, and anything that
+  // looks like an Unfriend confirmation.
+  findRequester(button, base) {
+    let node = button.parentElement;
+    for (let depth = 0; node && depth < 10; depth++, node = node.parentElement) {
+      for (const a of node.querySelectorAll("a[href]")) {
+        const label = a.getAttribute("aria-label") || "";
+        if (/^Profile picture of|mutual friend/i.test(label)) continue;
+        const ref = this.profileRef(a.getAttribute("href"), base);
+        if (!ref) continue;
+        const text = node.textContent || "";
+        if (/unfriend/i.test(text)) return null;
+        if (!/mutual friend|friend request/i.test(text) &&
+            !/\/friends\/requests/.test(a.getAttribute("href")))
+          continue;
+        const name = (label || a.textContent || "").trim();
+        return name ? { name, ...ref } : null;
+      }
+    }
+    return null;
   },
 
   // Result of a full scroll through the friend list. A complete-looking run

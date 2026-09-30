@@ -75,5 +75,25 @@
         <div data-virtualized="true" id="unit-spacer"></div>
       </div>
     </div>
+    <!-- Right rail: a pending friend request (real 2026 markup, trimmed). -->
+    <div role="complementary" id="right_rail_container">
+      <h3>Friend requests</h3>
+      <div id="request">
+        <a href="/friends/requests/?profile_id=31337" aria-label="Req Person"></a>
+        <a href="/friends/requests/?profile_id=31337"><span>Req Person</span></a>
+        <a aria-label="Profile picture of Pal, who is a mutual friend" href="/pal.one"></a>
+        <span>3 mutual friends</span>
+        <div aria-label="Confirm" role="button" id="confirm-request">Confirm</div>
+        <div aria-label="Delete" role="button">Delete</div>
+      </div>
+    </div>
+
+    <!-- Facebook embeds recent notifications as JSON in the page. -->
+    <script type="application/json" data-sjs>
+      {"require":[["ScheduledServerJS","handle",null,[{"__bbox":{"result":{"data":{"viewer":{"notifications_page":{"edges":[
+        {"node":{"notif":{"body":{"ranges":[{"entity":{"__typename":"User","id":"424242","url":"https://www.facebook.com/newbie.person"},"offset":0,"length":13}],"text":"Newbie Person accepted your friend request."}}}},
+        {"node":{"notif":{"body":{"ranges":[{"entity":{"__typename":"User","id":"31337","url":"https://www.facebook.com/req.person"},"offset":0,"length":10}],"text":"Req Person sent you a friend request."}}}}
+      ]}}}}}}]]]}
+    </script>
   </body>
 </html>

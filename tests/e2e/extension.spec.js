@@ -348,7 +348,7 @@ test.describe.serial("friends", () => {
   });
 });
 
-test("the friend list refreshes itself daily in a background tab", async () => {
+test("the full friend list re-scan runs in a background tab when due", async () => {
   await withPopup(
     () =>
       new Promise((r) =>
@@ -389,6 +389,62 @@ test("the friend list refreshes itself daily in a background tab", async () => {
   context.off("page", onPage);
   expect(reopened).toBe(false);
 
+  await page.close();
+  await withPopup(() =>
+    Promise.all([
+      new Promise((r) => chrome.storage.sync.clear(r)),
+      new Promise((r) => chrome.storage.local.clear(r)),
+    ])
+  );
+  await setSync({ autoSyncFriends: false });
+});
+
+test("new friends are picked up from notifications and Confirm clicks", async () => {
+  // A recent full scan, so no re-scan tab opens.
+  await withPopup(
+    () =>
+      new Promise((r) =>
+        chrome.storage.local.set(
+          { friends: [{ name: "Jane Doe", username: "jane.doe" }], lastFriendSync: Date.now() },
+          r
+        )
+      )
+  );
+  await setSync({ autoSyncFriends: true });
+
+  let rescanOpened = false;
+  const onPage = (p) => {
+    if (p.url().includes("/friends/list")) rescanOpened = true;
+  };
+  context.on("page", onPage);
+
+  const page = await context.newPage();
+  await page.goto(`${baseURL}/`);
+  const getFriends = () =>
+    withPopup(
+      () => new Promise((r) => chrome.storage.local.get({ friends: [] }, (x) => r(x.friends)))
+    );
+
+  // "Newbie Person accepted your friend request." → added with id + username.
+  await expect
+    .poll(async () => (await getFriends()).map((f) => f.name))
+    .toContain("Newbie Person");
+  let friends = await getFriends();
+  expect(friends).toContainEqual({ name: "Newbie Person", id: "424242", username: "newbie.person" });
+  // A request someone only *sent* doesn't make them a friend...
+  expect(friends.map((f) => f.name)).not.toContain("Req Person");
+
+  // ...until you confirm it.
+  await page.click("#confirm-request");
+  await expect
+    .poll(async () => (await getFriends()).map((f) => f.name))
+    .toContain("Req Person");
+  friends = await getFriends();
+  expect(friends).toContainEqual({ name: "Req Person", id: "31337" });
+  expect(friends.map((f) => f.name)).toContain("Jane Doe"); // nothing lost
+  expect(rescanOpened).toBe(false);
+
+  context.off("page", onPage);
   await page.close();
   await withPopup(() =>
     Promise.all([
